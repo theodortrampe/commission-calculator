@@ -1,0 +1,162 @@
+// schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// --------------------------------------
+// 1. USERS
+// --------------------------------------
+
+enum Role {
+  ADMIN
+  REP
+  MANAGER
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  role      Role     @default(REP)
+  
+  // Hierarchy
+  managerId String?
+  manager   User?    @relation("ManagerToRep", fields: [managerId], references: [id])
+  reports   User[]   @relation("ManagerToRep")
+
+  // Data
+  periodData UserPeriodData[]
+  orders     Order[]
+  payouts    Payout[]
+
+  createdAt DateTime @default(now())
+  @@map("users")
+}
+
+// --------------------------------------
+// 2. PERIOD DATA (The "Rate Source")
+// --------------------------------------
+
+model UserPeriodData {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  
+  // The "When"
+  month       DateTime // 2023-10-01
+  
+  // The "Input Variables" (Synced from BigQuery)
+  title       String?
+  quota       Float    // Denominator
+  baseSalary  Float    // Subtractor
+  ote         Float    // Minuend
+  
+  // The "Output Variable" (Derived)
+  // We store this to prevent historical changes if math logic changes later
+  effectiveRate Float  // (OTE - Base) / Quota
+
+  // Relations
+  planId      String?
+  plan        CompPlan? @relation(fields: [planId], references: [id])
+
+  @@unique([userId, month])
+  @@map("user_period_data")
+}
+
+// --------------------------------------
+// 3. ORDERS
+// --------------------------------------
+
+enum OrderStatus {
+  APPROVED
+  PENDING
+  DRAFT
+  CANCELLED
+}
+
+model Order {
+  id             String      @id @default(uuid())
+  orderNumber    String      @unique 
+  
+  // Financials
+  convertedUsd   Float
+  convertedEur   Float
+  
+  status         OrderStatus
+  bookingDate    DateTime    
+
+  // Relations
+  userId         String
+  user           User        @relation(fields: [userId], references: [id])
+  
+  @@map("orders")
+}
+
+// --------------------------------------
+// 4. LOGIC CONFIG (Accelerators Only)
+// --------------------------------------
+
+enum PayoutFreq {
+  MONTHLY
+  QUARTERLY
+}
+
+model CompPlan {
+  id          String     @id @default(uuid())
+  name        String     // "AE 2024 Accelerator Plan"
+  frequency   PayoutFreq
+  
+  // Logic for what happens AFTER 100% quota
+  // e.g. "Over 100% attainment = 1.5x multiplier on the effectiveRate"
+  accelerators Json?      
+
+  periodData   UserPeriodData[]
+
+  @@map("comp_plans")
+}
+
+// --------------------------------------
+// 5. PAYOUTS (Historical Record)
+// --------------------------------------
+// *Real-time views do NOT query this table. They query Orders + PeriodData directly.*
+
+enum PayoutStatus {
+  DRAFT
+  PUBLISHED
+  PAID
+}
+
+model Payout {
+  id             String       @id @default(uuid())
+  periodStart    DateTime     
+  periodEnd      DateTime
+  
+  grossEarnings  Float        
+  finalPayout    Float        
+  
+  status         PayoutStatus @default(DRAFT)
+
+  userId         String
+  user           User         @relation(fields: [userId], references: [id])
+  adjustments    Adjustment[] 
+
+  createdAt      DateTime     @default(now())
+
+  @@map("payouts")
+}
+
+model Adjustment {
+  id          String   @id @default(uuid())
+  amount      Float    
+  reason      String   
+  payoutId    String
+  payout      Payout   @relation(fields: [payoutId], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@map("adjustments")
+}
