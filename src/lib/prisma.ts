@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
-import { PrismaBetterSQLite3 } from "@prisma/adapter-better-sqlite3";
+import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import Database from "better-sqlite3";
 
 const globalForPrisma = globalThis as unknown as {
@@ -10,9 +10,7 @@ const globalForPrisma = globalThis as unknown as {
 
 function getPrismaClient(): PrismaClient {
   if (!globalForPrisma.prisma) {
-    // Create better-sqlite3 database connection
-    globalForPrisma.sqlite = new Database("./prisma/dev.db");
-    const adapter = new PrismaBetterSQLite3(globalForPrisma.sqlite);
+    const adapter = new PrismaBetterSqlite3({ url: "file:./prisma/dev.db" });
     globalForPrisma.prisma = new PrismaClient({ adapter });
   }
   return globalForPrisma.prisma;

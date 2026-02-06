@@ -88,13 +88,11 @@ export async function getAvailableMonths(userId: string): Promise<Date[]> {
  * In production, this would use authentication.
  */
 export async function getCurrentDemoUser() {
-    // For demo, return John Doe (first sales rep)
+    // For demo, return Jane Smith to showcase accelerator
     const user = await prisma.user.findFirst({
         where: {
             role: "REP",
-        },
-        orderBy: {
-            name: "asc",
+            name: "Jane Smith",
         },
     });
 

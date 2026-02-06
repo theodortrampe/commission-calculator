@@ -52,21 +52,27 @@ cd commission-calculator
 npm install
 ```
 
-3. Set up the database:
+3. Configure Environment:
+Create a `.env` file in the root directory:
+```env
+DATABASE_URL="file:./prisma/dev.db"
+```
+
+4. Set up the database:
 ```bash
 # Push schema to SQLite database
 npx prisma db push
 
 # Seed with sample data
-npx prisma db execute --file prisma/seed.sql
+npx prisma db seed
 ```
 
-4. Start the development server:
+5. Start the development server:
 ```bash
 npm run dev
 ```
 
-5. Open [http://localhost:3000](http://localhost:3000) in your browser.
+6. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## Project Structure
 
@@ -116,6 +122,18 @@ Accelerator tiers (configurable per comp plan):
 - 125-150% attainment: 2.0x
 - 150%+ attainment: 2.5x
 
+### Kickers (New)
+
+Fixed % of OTE earned at attainment milestones (e.g., 5% at 100%, 10% at 125%).
+
+## Known Issues
+
+> **Note**: These are tracked bugs that need fixing.
+
+1. **Settings Save Fails** - Saving commission settings with both accelerators and kickers enabled may fail. Workaround: Try saving with only one enabled at a time.
+
+2. **Prisma Client Type Errors** - Some TypeScript lint errors show for `@prisma/client` imports. These don't affect runtime but may show in IDE. Run `npx prisma generate` to refresh types.
+
 ## API Reference
 
 ### POST /api/ingest/bigquery
@@ -149,10 +167,10 @@ Ingest multiple rows in a batch.
 
 ## Environment Variables
 
-Create a `.env` file:
+Create a `.env` file in the root of the project:
 
 ```env
-# SQLite (development)
+# Local SQLite (development)
 DATABASE_URL="file:./prisma/dev.db"
 
 # PostgreSQL (production)

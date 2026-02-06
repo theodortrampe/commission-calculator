@@ -17,10 +17,10 @@ interface OrdersTableProps {
 }
 
 const statusColors: Record<OrderStatus, string> = {
-    APPROVED: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
-    PENDING: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20",
-    DRAFT: "bg-slate-500/15 text-slate-700 dark:text-slate-400 border-slate-500/20",
-    CANCELLED: "bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/20",
+    APPROVED: "bg-foreground text-background border-transparent",
+    PENDING: "bg-transparent text-muted-foreground border-border",
+    DRAFT: "bg-transparent text-muted-foreground border-border",
+    CANCELLED: "bg-transparent text-muted-foreground border-border line-through",
 };
 
 function formatCurrency(amount: number): string {

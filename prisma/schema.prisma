@@ -110,10 +110,19 @@ model CompPlan {
   id          String     @id @default(uuid())
   name        String     // "AE 2024 Accelerator Plan"
   frequency   PayoutFreq
+  baseRateMultiplier Float @default(1.0)  // 1x = normal rate
+  
+  // Feature toggles
+  acceleratorsEnabled Boolean @default(true)
+  kickersEnabled      Boolean @default(false)
   
   // Logic for what happens AFTER 100% quota
   // e.g. "Over 100% attainment = 1.5x multiplier on the effectiveRate"
-  accelerators Json?      
+  accelerators Json?
+  
+  // Kickers: fixed % of OTE at attainment milestones
+  // e.g. { tiers: [{ attainmentThreshold: 100, kickerPercent: 5 }] }
+  kickers Json?
 
   periodData   UserPeriodData[]
 

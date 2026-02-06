@@ -91,38 +91,152 @@ export function DashboardClient({
                     <OrdersTable orders={data.orders} />
                 </div>
 
-                {/* Commission Breakdown */}
-                {data.commission.breakdown.overageRevenue > 0 && (
-                    <div className="mt-8 p-6 rounded-lg border bg-gradient-to-br from-primary/5 to-transparent">
-                        <h3 className="font-semibold mb-4">Commission Breakdown</h3>
-                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 text-sm">
-                            <div>
-                                <p className="text-muted-foreground">Base Revenue</p>
-                                <p className="font-mono font-medium">
-                                    ${data.commission.breakdown.baseRevenue.toLocaleString()}
+                {/* How Your Commission is Calculated */}
+                <div className="mt-8 p-6 rounded-lg border bg-muted/30">
+                    <h3 className="font-semibold mb-6">How Your Commission is Calculated</h3>
+
+                    {/* Compensation Summary */}
+                    <div className="mb-6">
+                        <h4 className="text-sm font-medium text-muted-foreground mb-3">Your Compensation Plan</h4>
+                        <div className="grid gap-4 md:grid-cols-3 text-sm">
+                            <div className="p-3 rounded-md bg-background border">
+                                <p className="text-muted-foreground text-xs">Monthly Quota</p>
+                                <p className="font-mono font-medium text-lg">
+                                    ${data.commission.periodData.quota.toLocaleString()}
                                 </p>
                             </div>
-                            <div>
-                                <p className="text-muted-foreground">Base Commission</p>
-                                <p className="font-mono font-medium">
-                                    ${data.commission.breakdown.baseCommission.toLocaleString()}
+                            <div className="p-3 rounded-md bg-background border">
+                                <p className="text-muted-foreground text-xs">Effective Commission Rate</p>
+                                <p className="font-mono font-medium text-lg">
+                                    {(data.commission.periodData.effectiveRate * 100).toFixed(2)}%
                                 </p>
+                                <p className="text-xs text-muted-foreground mt-1">(OTE - Base) ÷ Quota</p>
                             </div>
-                            <div>
-                                <p className="text-muted-foreground">Overage Revenue</p>
-                                <p className="font-mono font-medium text-emerald-600">
-                                    ${data.commission.breakdown.overageRevenue.toLocaleString()}
-                                </p>
-                            </div>
-                            <div>
-                                <p className="text-muted-foreground">Accelerated Commission</p>
-                                <p className="font-mono font-medium text-emerald-600">
-                                    ${data.commission.breakdown.overageCommission.toLocaleString()}
+                            <div className="p-3 rounded-md bg-background border">
+                                <p className="text-muted-foreground text-xs">Plan</p>
+                                <p className="font-medium">
+                                    {data.commission.periodData.planName ?? "Standard"}
                                 </p>
                             </div>
                         </div>
                     </div>
-                )}
+
+                    {/* Revenue Summary */}
+                    <div className="mb-6">
+                        <h4 className="text-sm font-medium text-muted-foreground mb-3">Revenue Summary</h4>
+                        <div className="grid gap-4 md:grid-cols-3 text-sm">
+                            <div className="p-3 rounded-md bg-background border">
+                                <p className="text-muted-foreground text-xs">Total Approved Revenue</p>
+                                <p className="font-mono font-medium text-lg">
+                                    ${data.commission.totalRevenue.toLocaleString()}
+                                </p>
+                            </div>
+                            <div className="p-3 rounded-md bg-background border">
+                                <p className="text-muted-foreground text-xs">Base Revenue (up to quota)</p>
+                                <p className="font-mono font-medium text-lg">
+                                    ${data.commission.breakdown.baseRevenue.toLocaleString()}
+                                </p>
+                            </div>
+                            <div className="p-3 rounded-md bg-background border">
+                                <p className="text-muted-foreground text-xs">Overage Revenue (above quota)</p>
+                                <p className="font-mono font-medium text-lg">
+                                    ${data.commission.breakdown.overageRevenue.toLocaleString()}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Commission Calculation */}
+                    <div className="mb-6">
+                        <h4 className="text-sm font-medium text-muted-foreground mb-3">Commission Calculation</h4>
+                        <div className="space-y-3 text-sm font-mono bg-background p-4 rounded-md border">
+                            {/* Base Commission */}
+                            <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-muted-foreground">Base Commission:</span>
+                                <span>${data.commission.breakdown.baseRevenue.toLocaleString()}</span>
+                                <span className="text-muted-foreground">×</span>
+                                <span>{(data.commission.periodData.effectiveRate * 100).toFixed(2)}%</span>
+                                <span className="text-muted-foreground">=</span>
+                                <span className="font-semibold">${data.commission.breakdown.baseCommission.toLocaleString()}</span>
+                            </div>
+
+                            {/* Overage Commission (if applicable) */}
+                            {data.commission.breakdown.overageRevenue > 0 && (
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <span className="text-muted-foreground">Overage Commission:</span>
+                                    <span>${data.commission.breakdown.overageRevenue.toLocaleString()}</span>
+                                    <span className="text-muted-foreground">×</span>
+                                    <span>{(data.commission.periodData.effectiveRate * 100).toFixed(2)}%</span>
+                                    <span className="text-muted-foreground">×</span>
+                                    <span>{data.commission.breakdown.acceleratorMultiplier}x</span>
+                                    <span className="text-muted-foreground">=</span>
+                                    <span className="font-semibold">${data.commission.breakdown.overageCommission.toLocaleString()}</span>
+                                </div>
+                            )}
+
+                            {/* Kicker Bonus (if applicable) */}
+                            {data.commission.breakdown.kickerAmount > 0 && (
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <span className="text-muted-foreground">Kicker Bonus:</span>
+                                    <span className="font-semibold">${data.commission.breakdown.kickerAmount.toLocaleString()}</span>
+                                    <span className="text-xs text-muted-foreground">
+                                        ({data.commission.breakdown.kickersApplied.join(", ")})
+                                    </span>
+                                </div>
+                            )}
+
+                            {/* Divider */}
+                            <div className="border-t my-2"></div>
+
+                            {/* Total */}
+                            <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-muted-foreground">Total Commission:</span>
+                                <span>${data.commission.breakdown.baseCommission.toLocaleString()}</span>
+                                {data.commission.breakdown.overageRevenue > 0 && (
+                                    <>
+                                        <span className="text-muted-foreground">+</span>
+                                        <span>${data.commission.breakdown.overageCommission.toLocaleString()}</span>
+                                    </>
+                                )}
+                                {data.commission.breakdown.kickerAmount > 0 && (
+                                    <>
+                                        <span className="text-muted-foreground">+</span>
+                                        <span>${data.commission.breakdown.kickerAmount.toLocaleString()}</span>
+                                    </>
+                                )}
+                                <span className="text-muted-foreground">=</span>
+                                <span className="font-bold text-lg">${data.commission.commissionEarned.toLocaleString()}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Accelerator Tier */}
+                    {data.commission.breakdown.overageRevenue > 0 && (
+                        <div>
+                            <h4 className="text-sm font-medium text-muted-foreground mb-3">Accelerator Applied</h4>
+                            <div className="p-3 rounded-md bg-background border text-sm">
+                                <p className="font-medium">{data.commission.breakdown.tierApplied}</p>
+                                <p className="text-muted-foreground text-xs mt-1">
+                                    You exceeded quota by {(data.commission.attainmentPercent - 100).toFixed(1)}%,
+                                    earning a {data.commission.breakdown.acceleratorMultiplier}x multiplier on overage revenue.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Kicker Bonuses */}
+                    {data.commission.breakdown.kickerAmount > 0 && (
+                        <div className="mt-4">
+                            <h4 className="text-sm font-medium text-muted-foreground mb-3">Kicker Bonuses Earned</h4>
+                            <div className="p-3 rounded-md bg-background border text-sm">
+                                <p className="font-medium">${data.commission.breakdown.kickerAmount.toLocaleString()} bonus</p>
+                                <p className="text-muted-foreground text-xs mt-1">
+                                    Kickers applied: {data.commission.breakdown.kickersApplied.join(", ")}
+                                </p>
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );

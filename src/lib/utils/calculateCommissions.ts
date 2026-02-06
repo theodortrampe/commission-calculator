@@ -2,12 +2,14 @@ import { prisma } from "@/lib/prisma";
 import { OrderStatus } from "@prisma/client";
 import {
     calculateCommissionWithAccelerators,
+    calculateKickers,
     AcceleratorConfig,
+    KickerConfig,
     CommissionResult,
 } from "./commissionLogic";
 
-export type { CommissionResult, CommissionBreakdown, AcceleratorConfig, AcceleratorTier } from "./commissionLogic";
-export { calculateCommissionWithAccelerators } from "./commissionLogic";
+export type { CommissionResult, CommissionBreakdown, AcceleratorConfig, AcceleratorTier, KickerConfig, KickerTier } from "./commissionLogic";
+export { calculateCommissionWithAccelerators, calculateKickers } from "./commissionLogic";
 
 export interface CalculateCommissionsInput {
     userId: string;
@@ -26,6 +28,7 @@ export interface CalculateCommissionsInput {
  * 5. Calculates Commission:
  *    - Base Commission = Revenue up to quota * effectiveRate
  *    - If Attainment > 100%, applies accelerator multiplier to overage only
+ *    - If kickers enabled, adds fixed % of OTE at milestones
  */
 export async function calculateCommissions(
     input: CalculateCommissionsInput
@@ -70,23 +73,51 @@ export async function calculateCommissions(
     // Calculate attainment percentage
     const attainmentPercent = (totalRevenue / periodData.quota) * 100;
 
-    // Calculate commission with accelerators
-    const { commissionEarned, breakdown } = calculateCommissionWithAccelerators(
+    // Get plan config
+    const plan = periodData.plan;
+    const baseRateMultiplier = plan?.baseRateMultiplier ?? 1.0;
+    const acceleratorsEnabled = plan?.acceleratorsEnabled ?? true;
+    const kickersEnabled = plan?.kickersEnabled ?? false;
+
+    // Calculate base + accelerator commission
+    const acceleratorConfig = acceleratorsEnabled
+        ? (plan?.accelerators as AcceleratorConfig | null)
+        : null;
+
+    const { commissionEarned: baseCommissionEarned, breakdown } = calculateCommissionWithAccelerators(
         totalRevenue,
         periodData.quota,
         periodData.effectiveRate,
-        periodData.plan?.accelerators as AcceleratorConfig | null
+        acceleratorConfig,
+        baseRateMultiplier
     );
+
+    // Calculate kickers
+    const kickerConfig = plan?.kickers as KickerConfig | null;
+    const { kickerAmount, kickersApplied } = calculateKickers(
+        attainmentPercent,
+        periodData.ote,
+        kickerConfig,
+        kickersEnabled
+    );
+
+    // Total commission includes base + accelerator + kickers
+    const totalCommission = baseCommissionEarned + kickerAmount;
+
+    // Update breakdown with kicker info
+    breakdown.kickerAmount = kickerAmount;
+    breakdown.kickersApplied = kickersApplied;
 
     return {
         totalRevenue,
         attainmentPercent,
-        commissionEarned,
+        commissionEarned: totalCommission,
         breakdown,
         periodData: {
             quota: periodData.quota,
             effectiveRate: periodData.effectiveRate,
-            planName: periodData.plan?.name ?? null,
+            planName: plan?.name ?? null,
+            ote: periodData.ote,
         },
     };
 }

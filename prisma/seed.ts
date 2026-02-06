@@ -1,15 +1,10 @@
 import "dotenv/config";
 import { PrismaClient, Role, OrderStatus, PayoutFreq } from "@prisma/client";
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { PrismaBetterSQLite3 } = require("@prisma/adapter-better-sqlite3");
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const Database = require("better-sqlite3");
-
-// Create better-sqlite3 database connection
-const sqlite = new Database("./prisma/dev.db");
+import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import Database from "better-sqlite3";
 
 // Create adapter
-const adapter = new PrismaBetterSQLite3(sqlite);
+const adapter = new PrismaBetterSqlite3({ url: "file:./prisma/dev.db" });
 
 // Create Prisma client with adapter
 const prisma = new PrismaClient({ adapter });
@@ -32,6 +27,7 @@ async function main() {
         data: {
             name: "AE 2024 Accelerator Plan",
             frequency: PayoutFreq.MONTHLY,
+            baseRateMultiplier: 1.0,
             accelerators: {
                 tiers: [
                     { minAttainment: 0, maxAttainment: 100, multiplier: 1.0 },
@@ -177,10 +173,10 @@ async function main() {
 
     // Orders for Jane Smith - Current Month
     const janeCurrentOrders = [
-        { orderNumber: "ORD-2026-011", convertedUsd: 22000, convertedEur: 20020, status: OrderStatus.APPROVED },
-        { orderNumber: "ORD-2026-012", convertedUsd: 35000, convertedEur: 31850, status: OrderStatus.APPROVED },
+        { orderNumber: "ORD-2026-011", convertedUsd: 35000, convertedEur: 31850, status: OrderStatus.APPROVED },
+        { orderNumber: "ORD-2026-012", convertedUsd: 42000, convertedEur: 38220, status: OrderStatus.APPROVED },
         { orderNumber: "ORD-2026-013", convertedUsd: 18000, convertedEur: 16380, status: OrderStatus.PENDING },
-        { orderNumber: "ORD-2026-014", convertedUsd: 41000, convertedEur: 37310, status: OrderStatus.APPROVED },
+        { orderNumber: "ORD-2026-014", convertedUsd: 48000, convertedEur: 43680, status: OrderStatus.APPROVED },
         { orderNumber: "ORD-2026-015", convertedUsd: 12000, convertedEur: 10920, status: OrderStatus.PENDING },
     ];
 
@@ -232,5 +228,4 @@ main()
     })
     .finally(async () => {
         await prisma.$disconnect();
-        sqlite.close();
     });
