@@ -9,5 +9,12 @@ export default async function AdminPayoutsPage() {
 
     const initialData = await getAllUserEarnings(currentMonth);
 
-    return <PayoutsClient initialData={initialData} currentMonth={currentMonth} />;
+    return (
+        <PayoutsClient
+            initialData={initialData}
+            currentMonth={currentMonth}
+        />
+    );
 }
+
+

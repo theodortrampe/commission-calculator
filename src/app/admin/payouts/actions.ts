@@ -3,26 +3,28 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { calculateCommissions, CommissionResult } from "@/lib/utils/calculateCommissions";
-import { Payout, PayoutStatus, User, Adjustment } from "@prisma/client";
+import { Payout, PayoutStatus, User, Adjustment, AdjustmentType } from "@prisma/client";
 
 export interface UserEarningsSummary {
     user: User;
     commission: CommissionResult | null;
     existingPayout: Payout | null;
-    error?: string;
-}
-
-export interface PayoutWithAdjustments extends Payout {
     adjustments: Adjustment[];
-    user: User;
+    revenueAdjustmentTotal: number;
+    fixedBonusTotal: number;
+    /** The delta in commission caused by revenue adjustments (commission with adj - commission without) */
+    revenueAdjustmentImpact: number;
+    error?: string;
 }
 
 /**
  * Get all sales reps with their earnings for a specific month.
+ * Now includes adjustments for each user with net payout impact.
  */
 export async function getAllUserEarnings(month: Date): Promise<UserEarningsSummary[]> {
     const startDate = new Date(month.getFullYear(), month.getMonth(), 1);
     const endDate = new Date(month.getFullYear(), month.getMonth() + 1, 0, 23, 59, 59, 999);
+    const periodMonth = new Date(month.getFullYear(), month.getMonth(), 1);
 
     // Get all REP users
     const users = await prisma.user.findMany({
@@ -46,16 +48,47 @@ export async function getAllUserEarnings(month: Date): Promise<UserEarningsSumma
             },
         });
 
-        // Calculate commission
+        // Get adjustments for this user/month
+        const adjustments = await prisma.adjustment.findMany({
+            where: {
+                userId: user.id,
+                month: periodMonth,
+            },
+        });
+
+        // Calculate adjustment totals by type
+        const revenueAdjustmentTotal = adjustments
+            .filter(a => a.adjustmentType === "REVENUE")
+            .reduce((sum, a) => sum + a.amount, 0);
+        const fixedBonusTotal = adjustments
+            .filter(a => a.adjustmentType === "FIXED_BONUS")
+            .reduce((sum, a) => sum + a.amount, 0);
+
+        // Calculate commission (with revenue adjustments factored in)
         let commission: CommissionResult | null = null;
+        let commissionWithoutAdj: CommissionResult | null = null;
         let error: string | undefined;
+        let revenueAdjustmentImpact = 0;
 
         try {
+            // Calculate with adjustments
             commission = await calculateCommissions({
                 userId: user.id,
                 startDate,
                 endDate,
+                revenueAdjustment: revenueAdjustmentTotal,
             });
+
+            // If there are revenue adjustments, also calculate without to get delta
+            if (revenueAdjustmentTotal !== 0) {
+                commissionWithoutAdj = await calculateCommissions({
+                    userId: user.id,
+                    startDate,
+                    endDate,
+                    revenueAdjustment: 0,
+                });
+                revenueAdjustmentImpact = commission.commissionEarned - commissionWithoutAdj.commissionEarned;
+            }
         } catch (e) {
             error = e instanceof Error ? e.message : "Failed to calculate commission";
         }
@@ -64,6 +97,10 @@ export async function getAllUserEarnings(month: Date): Promise<UserEarningsSumma
             user,
             commission,
             existingPayout,
+            adjustments,
+            revenueAdjustmentTotal,
+            fixedBonusTotal,
+            revenueAdjustmentImpact,
             error,
         });
     }
@@ -71,120 +108,171 @@ export async function getAllUserEarnings(month: Date): Promise<UserEarningsSumma
     return results;
 }
 
+// ============================================
+// Bulk Payout Actions
+// ============================================
+
 /**
- * Generate a new payout for a user.
+ * Generate DRAFT payouts for all reps who don't have a payout for the given month.
+ * Includes revenue adjustments in the commission calculation.
  */
-export async function generatePayout(
-    userId: string,
+export async function generateBulkPayouts(
     month: Date
-): Promise<{ success: boolean; payout?: Payout; error?: string }> {
+): Promise<{ success: boolean; generated: number; errors: string[] }> {
     const startDate = new Date(month.getFullYear(), month.getMonth(), 1);
     const endDate = new Date(month.getFullYear(), month.getMonth() + 1, 0, 23, 59, 59, 999);
+    const periodMonth = new Date(month.getFullYear(), month.getMonth(), 1);
+
+    const errors: string[] = [];
+    let generated = 0;
 
     try {
-        // Check for existing payout
-        const existingPayout = await prisma.payout.findFirst({
-            where: {
-                userId,
-                periodStart: startDate,
-                periodEnd: endDate,
-            },
+        // Get all REP users
+        const users = await prisma.user.findMany({
+            where: { role: "REP" },
         });
 
-        if (existingPayout) {
-            return {
-                success: false,
-                error: "A payout already exists for this period",
-            };
+        for (const user of users) {
+            // Check for existing payout
+            const existingPayout = await prisma.payout.findFirst({
+                where: {
+                    userId: user.id,
+                    periodStart: startDate,
+                    periodEnd: endDate,
+                },
+            });
+
+            if (existingPayout) {
+                continue; // Skip users who already have a payout
+            }
+
+            try {
+                // Get revenue adjustments for this user/month
+                const revenueAdjustments = await prisma.adjustment.findMany({
+                    where: {
+                        userId: user.id,
+                        month: periodMonth,
+                        adjustmentType: "REVENUE",
+                    },
+                });
+                const totalRevenueAdjustment = revenueAdjustments.reduce((sum, adj) => sum + adj.amount, 0);
+
+                // Get fixed bonus adjustments
+                const fixedBonusAdjustments = await prisma.adjustment.findMany({
+                    where: {
+                        userId: user.id,
+                        month: periodMonth,
+                        adjustmentType: "FIXED_BONUS",
+                    },
+                });
+                const totalFixedBonus = fixedBonusAdjustments.reduce((sum, adj) => sum + adj.amount, 0);
+
+                // Calculate commission with revenue adjustment
+                const commission = await calculateCommissions({
+                    userId: user.id,
+                    startDate,
+                    endDate,
+                    revenueAdjustment: totalRevenueAdjustment,
+                });
+
+                // Create payout record
+                const payout = await prisma.payout.create({
+                    data: {
+                        userId: user.id,
+                        periodStart: startDate,
+                        periodEnd: endDate,
+                        grossEarnings: commission.commissionEarned,
+                        finalPayout: commission.commissionEarned + totalFixedBonus,
+                        status: PayoutStatus.DRAFT,
+                    },
+                });
+
+                // Link all adjustments to this payout
+                const allAdjustmentIds = [...revenueAdjustments, ...fixedBonusAdjustments].map(a => a.id);
+                if (allAdjustmentIds.length > 0) {
+                    await prisma.adjustment.updateMany({
+                        where: { id: { in: allAdjustmentIds } },
+                        data: { payoutId: payout.id },
+                    });
+                }
+
+                generated++;
+            } catch (e) {
+                errors.push(`${user.name}: ${e instanceof Error ? e.message : "Failed to generate payout"}`);
+            }
         }
-
-        // Calculate commission
-        const commission = await calculateCommissions({
-            userId,
-            startDate,
-            endDate,
-        });
-
-        // Create payout record
-        const payout = await prisma.payout.create({
-            data: {
-                userId,
-                periodStart: startDate,
-                periodEnd: endDate,
-                grossEarnings: commission.commissionEarned,
-                finalPayout: commission.commissionEarned,
-                status: PayoutStatus.DRAFT,
-            },
-        });
 
         revalidatePath("/admin/payouts");
 
-        return { success: true, payout };
+        return { success: true, generated, errors };
     } catch (e) {
         return {
             success: false,
-            error: e instanceof Error ? e.message : "Failed to generate payout",
+            generated: 0,
+            errors: [e instanceof Error ? e.message : "Bulk generation failed"],
         };
     }
 }
 
 /**
- * Get a payout by ID with adjustments.
+ * Publish all DRAFT payouts for a given month.
  */
-export async function getPayoutById(
-    payoutId: string
-): Promise<PayoutWithAdjustments | null> {
-    return prisma.payout.findUnique({
-        where: { id: payoutId },
-        include: {
-            adjustments: {
-                orderBy: { createdAt: "desc" },
+export async function publishBulkPayouts(
+    month: Date
+): Promise<{ success: boolean; published: number; error?: string }> {
+    const startDate = new Date(month.getFullYear(), month.getMonth(), 1);
+    const endDate = new Date(month.getFullYear(), month.getMonth() + 1, 0, 23, 59, 59, 999);
+
+    try {
+        const result = await prisma.payout.updateMany({
+            where: {
+                periodStart: startDate,
+                periodEnd: endDate,
+                status: PayoutStatus.DRAFT,
             },
-            user: true,
-        },
-    });
+            data: {
+                status: PayoutStatus.PUBLISHED,
+            },
+        });
+
+        revalidatePath("/admin/payouts");
+
+        return { success: true, published: result.count };
+    } catch (e) {
+        return {
+            success: false,
+            published: 0,
+            error: e instanceof Error ? e.message : "Failed to publish payouts",
+        };
+    }
 }
 
 /**
- * Create an adjustment for a payout.
+ * Create an adjustment for a user (can be before payout exists).
+ * Type: REVENUE adjustments flow through commission calculation.
+ * Type: FIXED_BONUS adjustments are added directly to final payout.
  */
-export async function createAdjustment(
-    payoutId: string,
+export async function createUserAdjustment(
+    userId: string,
+    month: Date,
     amount: number,
-    reason: string
+    reason: string,
+    adjustmentType: AdjustmentType
 ): Promise<{ success: boolean; error?: string }> {
+    const periodMonth = new Date(month.getFullYear(), month.getMonth(), 1);
+
     try {
-        // Get current payout
-        const payout = await prisma.payout.findUnique({
-            where: { id: payoutId },
+        // Create the adjustment
+        await prisma.adjustment.create({
+            data: {
+                userId,
+                month: periodMonth,
+                amount,
+                reason,
+                adjustmentType,
+            },
         });
 
-        if (!payout) {
-            return { success: false, error: "Payout not found" };
-        }
-
-        if (payout.status !== PayoutStatus.DRAFT) {
-            return { success: false, error: "Can only adjust DRAFT payouts" };
-        }
-
-        // Create adjustment and update payout in a transaction
-        await prisma.$transaction([
-            prisma.adjustment.create({
-                data: {
-                    payoutId,
-                    amount,
-                    reason,
-                },
-            }),
-            prisma.payout.update({
-                where: { id: payoutId },
-                data: {
-                    finalPayout: payout.finalPayout + amount,
-                },
-            }),
-        ]);
-
-        revalidatePath(`/admin/payouts/${payoutId}`);
         revalidatePath("/admin/payouts");
 
         return { success: true };
@@ -196,51 +284,3 @@ export async function createAdjustment(
     }
 }
 
-/**
- * Update payout status.
- */
-export async function updatePayoutStatus(
-    payoutId: string,
-    status: PayoutStatus
-): Promise<{ success: boolean; error?: string }> {
-    try {
-        await prisma.payout.update({
-            where: { id: payoutId },
-            data: { status },
-        });
-
-        revalidatePath(`/admin/payouts/${payoutId}`);
-        revalidatePath("/admin/payouts");
-
-        return { success: true };
-    } catch (e) {
-        return {
-            success: false,
-            error: e instanceof Error ? e.message : "Failed to update status",
-        };
-    }
-}
-
-/**
- * Get all payouts for a given month.
- */
-export async function getPayoutsForMonth(month: Date): Promise<PayoutWithAdjustments[]> {
-    const startDate = new Date(month.getFullYear(), month.getMonth(), 1);
-    const endDate = new Date(month.getFullYear(), month.getMonth() + 1, 0, 23, 59, 59, 999);
-
-    return prisma.payout.findMany({
-        where: {
-            periodStart: startDate,
-            periodEnd: endDate,
-        },
-        include: {
-            adjustments: true,
-            user: true,
-        },
-        orderBy: {
-            user: {
-                name: "asc",
-            },
-        },
-    });
-}

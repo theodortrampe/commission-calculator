@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { format } from "date-fns";
-import { Loader2, Plus, AlertCircle, Download } from "lucide-react";
+import { Loader2, Plus, AlertCircle, Download, FileCheck, Send } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,8 +15,13 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { MonthPicker } from "@/components/ui/month-picker";
-import { UserEarningsSummary, generatePayout, getAllUserEarnings } from "./actions";
-import Link from "next/link";
+import {
+    UserEarningsSummary,
+    getAllUserEarnings,
+    generateBulkPayouts,
+    publishBulkPayouts,
+} from "./actions";
+import { AdjustmentDialog } from "./adjustment-dialog";
 
 interface PayoutsClientProps {
     initialData: UserEarningsSummary[];
@@ -36,7 +41,22 @@ export function PayoutsClient({ initialData, currentMonth }: PayoutsClientProps)
     const [data, setData] = useState<UserEarningsSummary[]>(initialData);
     const [selectedMonth, setSelectedMonth] = useState<Date>(currentMonth);
     const [isPending, startTransition] = useTransition();
-    const [generatingFor, setGeneratingFor] = useState<string | null>(null);
+
+    // Bulk action states
+    const [isDraftingAll, setIsDraftingAll] = useState(false);
+    const [isPublishingAll, setIsPublishingAll] = useState(false);
+
+    // Adjustment dialog state
+    const [adjustmentDialog, setAdjustmentDialog] = useState<{
+        open: boolean;
+        userId: string;
+        userName: string;
+    }>({ open: false, userId: "", userName: "" });
+
+    const refreshData = async () => {
+        const newData = await getAllUserEarnings(selectedMonth);
+        setData(newData);
+    };
 
     const handleMonthChange = (month: Date) => {
         setSelectedMonth(month);
@@ -46,64 +66,75 @@ export function PayoutsClient({ initialData, currentMonth }: PayoutsClientProps)
         });
     };
 
-    const handleGeneratePayout = async (userId: string) => {
-        setGeneratingFor(userId);
-        const result = await generatePayout(userId, selectedMonth);
+    const handleDraftAll = async () => {
+        setIsDraftingAll(true);
+        const result = await generateBulkPayouts(selectedMonth);
 
         if (result.success) {
-            // Refresh data
-            const newData = await getAllUserEarnings(selectedMonth);
-            setData(newData);
+            await refreshData();
+            if (result.errors.length > 0) {
+                alert(`Generated ${result.generated} payouts with ${result.errors.length} errors:\n${result.errors.join("\n")}`);
+            }
         } else {
-            alert(result.error || "Failed to generate payout");
+            alert(result.errors.join("\n") || "Failed to generate payouts");
         }
-        setGeneratingFor(null);
+        setIsDraftingAll(false);
+    };
+
+    const handlePublishAll = async () => {
+        setIsPublishingAll(true);
+        const result = await publishBulkPayouts(selectedMonth);
+
+        if (result.success) {
+            await refreshData();
+        } else {
+            alert(result.error || "Failed to publish payouts");
+        }
+        setIsPublishingAll(false);
     };
 
     const handleExportCSV = () => {
-        // CSV Header
         const headers = [
             "Rep Name",
-            "Month",
+            "OTE",
             "Quota",
-            "Total Revenue",
-            "Commission Earned",
-            "Adjustments",
-            "Final Payout",
+            "Revenue",
+            "Adjusted Revenue",
+            "Attainment",
+            "Earnings",
+            "Adjusted Earnings",
+            "Status",
         ];
 
-        // CSV Rows
         const rows = data.map((item) => {
-            const payout = item.existingPayout;
             const commission = item.commission;
+            const ote = commission?.periodData.ote || 0;
             const quota = commission?.periodData.quota || 0;
-            const totalRevenue = commission?.totalRevenue || 0;
-            const commissionEarned = commission?.commissionEarned || 0;
-
-            // For adjustments and final payout, we need the payout data
-            const adjustments = payout
-                ? payout.finalPayout - payout.grossEarnings
-                : 0;
-            const finalPayout = payout?.finalPayout || commissionEarned;
+            const revenue = commission ? commission.totalRevenue - item.revenueAdjustmentTotal : 0;
+            const adjustedRevenue = commission?.totalRevenue || 0;
+            const attainment = commission?.attainmentPercent || 0;
+            const earnings = commission?.commissionEarned || 0;
+            const adjustedEarnings = earnings + item.fixedBonusTotal;
+            const status = item.existingPayout?.status || "NO_PAYOUT";
 
             return [
                 item.user.name,
-                format(selectedMonth, "yyyy-MM"),
+                ote.toFixed(2),
                 quota.toFixed(2),
-                totalRevenue.toFixed(2),
-                commissionEarned.toFixed(2),
-                adjustments.toFixed(2),
-                finalPayout.toFixed(2),
+                revenue.toFixed(2),
+                adjustedRevenue.toFixed(2),
+                attainment.toFixed(1) + "%",
+                earnings.toFixed(2),
+                adjustedEarnings.toFixed(2),
+                status,
             ];
         });
 
-        // Build CSV content
         const csvContent = [
             headers.join(","),
             ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
         ].join("\n");
 
-        // Create and download file
         const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
@@ -114,6 +145,11 @@ export function PayoutsClient({ initialData, currentMonth }: PayoutsClientProps)
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
     };
+
+    // Calculate summary stats
+    const draftCount = data.filter((d) => d.existingPayout?.status === "DRAFT").length;
+    const publishedCount = data.filter((d) => d.existingPayout?.status === "PUBLISHED").length;
+    const noPayoutCount = data.filter((d) => !d.existingPayout).length;
 
     return (
         <div className="container mx-auto py-10 px-4">
@@ -126,126 +162,183 @@ export function PayoutsClient({ initialData, currentMonth }: PayoutsClientProps)
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Button
-                        variant="outline"
-                        onClick={handleExportCSV}
-                        disabled={data.length === 0}
-                    >
-                        <Download className="h-4 w-4 mr-2" />
-                        Export to CSV
-                    </Button>
                     <MonthPicker value={selectedMonth} onChange={handleMonthChange} />
                 </div>
             </div>
 
+            {/* Bulk Actions */}
+            <div className="flex flex-wrap gap-2 mb-6">
+                <Button
+                    onClick={handleDraftAll}
+                    disabled={isDraftingAll || isPublishingAll || noPayoutCount === 0}
+                >
+                    {isDraftingAll ? (
+                        <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Drafting...
+                        </>
+                    ) : (
+                        <>
+                            <FileCheck className="h-4 w-4 mr-2" />
+                            Draft All Payouts ({noPayoutCount})
+                        </>
+                    )}
+                </Button>
+                <Button
+                    variant="secondary"
+                    onClick={handlePublishAll}
+                    disabled={isDraftingAll || isPublishingAll || draftCount === 0}
+                >
+                    {isPublishingAll ? (
+                        <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Publishing...
+                        </>
+                    ) : (
+                        <>
+                            <Send className="h-4 w-4 mr-2" />
+                            Publish All ({draftCount})
+                        </>
+                    )}
+                </Button>
+                <Button
+                    variant="outline"
+                    onClick={handleExportCSV}
+                    disabled={data.length === 0}
+                >
+                    <Download className="h-4 w-4 mr-2" />
+                    Export CSV
+                </Button>
+            </div>
+
             {/* Users Earnings Table */}
             <div className={`transition-opacity ${isPending ? "opacity-50" : ""}`}>
-                <div className="rounded-lg border">
+                <div className="rounded-lg border overflow-x-auto">
                     <Table>
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Sales Rep</TableHead>
-                                <TableHead>Email</TableHead>
+                                <TableHead className="text-right">Var. Bonus</TableHead>
+                                <TableHead className="text-right">Quota</TableHead>
                                 <TableHead className="text-right">Revenue</TableHead>
+                                <TableHead className="text-right">Adj. Revenue</TableHead>
                                 <TableHead className="text-right">Attainment</TableHead>
                                 <TableHead className="text-right">Earnings</TableHead>
-                                <TableHead className="text-center">Payout Status</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
+                                <TableHead className="text-right">Adj. Earnings</TableHead>
+                                <TableHead className="text-center">Status</TableHead>
+                                <TableHead className="text-center">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {data.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                                    <TableCell colSpan={10} className="text-center py-12 text-muted-foreground">
                                         No sales reps found. Run the seed script to create test data.
                                     </TableCell>
                                 </TableRow>
                             ) : (
-                                data.map((item) => (
-                                    <TableRow key={item.user.id}>
-                                        <TableCell className="font-medium">{item.user.name}</TableCell>
-                                        <TableCell className="text-muted-foreground">{item.user.email}</TableCell>
-                                        <TableCell className="text-right font-mono">
-                                            {item.commission
-                                                ? formatCurrency(item.commission.totalRevenue)
-                                                : "-"}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            {item.commission ? (
+                                data.map((item) => {
+                                    const commission = item.commission;
+                                    const ote = commission?.periodData.ote || 0;
+                                    const baseSalary = commission?.periodData.baseSalary || 0;
+                                    const variableBonus = ote - baseSalary;
+                                    const quota = commission?.periodData.quota || 0;
+                                    // Revenue is adjusted revenue minus the adjustment
+                                    const adjustedRevenue = commission?.totalRevenue || 0;
+                                    const baseRevenue = adjustedRevenue - item.revenueAdjustmentTotal;
+                                    const attainment = commission?.attainmentPercent || 0;
+                                    const earnings = commission?.commissionEarned || 0;
+                                    const adjustedEarnings = earnings + item.fixedBonusTotal;
+                                    const hasAdjustments = item.revenueAdjustmentTotal !== 0 || item.fixedBonusTotal !== 0;
+
+                                    return (
+                                        <TableRow key={item.user.id}>
+                                            <TableCell className="font-medium">{item.user.name}</TableCell>
+                                            <TableCell className="text-right font-mono text-muted-foreground">
+                                                {formatCurrency(variableBonus)}
+                                            </TableCell>
+                                            <TableCell className="text-right font-mono text-muted-foreground">
+                                                {formatCurrency(quota)}
+                                            </TableCell>
+                                            <TableCell className="text-right font-mono">
+                                                {formatCurrency(baseRevenue)}
+                                            </TableCell>
+                                            <TableCell className="text-right font-mono">
+                                                <span className={item.revenueAdjustmentTotal !== 0 ? "text-purple-600 font-medium" : ""}>
+                                                    {formatCurrency(adjustedRevenue)}
+                                                </span>
+                                                {item.revenueAdjustmentTotal > 0 && (
+                                                    <span className="text-xs text-purple-500 ml-1">
+                                                        (+{formatCurrency(item.revenueAdjustmentTotal)})
+                                                    </span>
+                                                )}
+                                            </TableCell>
+                                            <TableCell className="text-right">
                                                 <span
                                                     className={
-                                                        item.commission.attainmentPercent >= 100
+                                                        attainment >= 100
                                                             ? "text-emerald-600 font-medium"
                                                             : "text-muted-foreground"
                                                     }
                                                 >
-                                                    {item.commission.attainmentPercent.toFixed(1)}%
+                                                    {attainment.toFixed(1)}%
                                                 </span>
-                                            ) : (
-                                                "-"
-                                            )}
-                                        </TableCell>
-                                        <TableCell className="text-right font-mono font-medium">
-                                            {item.commission
-                                                ? formatCurrency(item.commission.commissionEarned)
-                                                : "-"}
-                                        </TableCell>
-                                        <TableCell className="text-center">
-                                            {item.existingPayout ? (
-                                                <Link href={`/admin/payouts/${item.existingPayout.id}`}>
+                                            </TableCell>
+                                            <TableCell className="text-right font-mono">
+                                                {formatCurrency(earnings)}
+                                            </TableCell>
+                                            <TableCell className="text-right font-mono font-medium">
+                                                <span className={item.fixedBonusTotal !== 0 ? "text-green-600" : ""}>
+                                                    {formatCurrency(adjustedEarnings)}
+                                                </span>
+                                                {item.fixedBonusTotal > 0 && (
+                                                    <span className="text-xs text-green-500 ml-1">
+                                                        (+{formatCurrency(item.fixedBonusTotal)})
+                                                    </span>
+                                                )}
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                                {item.existingPayout ? (
                                                     <Badge
                                                         variant="outline"
                                                         className={
                                                             item.existingPayout.status === "DRAFT"
-                                                                ? "bg-amber-500/15 text-amber-700 border-amber-500/20 cursor-pointer hover:bg-amber-500/25"
-                                                                : item.existingPayout.status === "PUBLISHED"
-                                                                    ? "bg-blue-500/15 text-blue-700 border-blue-500/20 cursor-pointer hover:bg-blue-500/25"
-                                                                    : "bg-emerald-500/15 text-emerald-700 border-emerald-500/20 cursor-pointer hover:bg-emerald-500/25"
+                                                                ? "bg-amber-500/15 text-amber-700 border-amber-500/20"
+                                                                : "bg-emerald-500/15 text-emerald-700 border-emerald-500/20"
                                                         }
                                                     >
                                                         {item.existingPayout.status}
                                                     </Badge>
-                                                </Link>
-                                            ) : (
-                                                <Badge variant="outline" className="text-muted-foreground">
-                                                    No Payout
-                                                </Badge>
-                                            )}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            {item.error ? (
-                                                <div className="flex items-center justify-end gap-1 text-red-500 text-sm">
-                                                    <AlertCircle className="h-4 w-4" />
-                                                    <span>Error</span>
-                                                </div>
-                                            ) : item.existingPayout ? (
-                                                <Link href={`/admin/payouts/${item.existingPayout.id}`}>
-                                                    <Button variant="outline" size="sm">
-                                                        View Details
+                                                ) : (
+                                                    <Badge variant="outline" className="text-muted-foreground">
+                                                        No Payout
+                                                    </Badge>
+                                                )}
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                                {item.error ? (
+                                                    <div className="flex items-center justify-center gap-1 text-red-500 text-sm">
+                                                        <AlertCircle className="h-4 w-4" />
+                                                        <span>Error</span>
+                                                    </div>
+                                                ) : (
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => setAdjustmentDialog({
+                                                            open: true,
+                                                            userId: item.user.id,
+                                                            userName: item.user.name,
+                                                        })}
+                                                    >
+                                                        <Plus className="h-4 w-4 mr-1" />
+                                                        Adjust
                                                     </Button>
-                                                </Link>
-                                            ) : (
-                                                <Button
-                                                    size="sm"
-                                                    onClick={() => handleGeneratePayout(item.user.id)}
-                                                    disabled={generatingFor === item.user.id || !item.commission}
-                                                >
-                                                    {generatingFor === item.user.id ? (
-                                                        <>
-                                                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                                                            Generating...
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <Plus className="h-4 w-4 mr-1" />
-                                                            Generate Payout
-                                                        </>
-                                                    )}
-                                                </Button>
-                                            )}
-                                        </TableCell>
-                                    </TableRow>
-                                ))
+                                                )}
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })
                             )}
                         </TableBody>
                     </Table>
@@ -254,29 +347,100 @@ export function PayoutsClient({ initialData, currentMonth }: PayoutsClientProps)
                 {/* Summary */}
                 {data.length > 0 && (
                     <div className="mt-6 p-4 rounded-lg bg-muted/50 border">
-                        <div className="grid grid-cols-3 gap-4 text-center">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
                             <div>
                                 <p className="text-sm text-muted-foreground">Total Reps</p>
                                 <p className="text-2xl font-bold">{data.length}</p>
                             </div>
                             <div>
-                                <p className="text-sm text-muted-foreground">Payouts Generated</p>
-                                <p className="text-2xl font-bold text-emerald-600">
-                                    {data.filter((d) => d.existingPayout).length}
-                                </p>
+                                <p className="text-sm text-muted-foreground">No Payout</p>
+                                <p className="text-2xl font-bold text-muted-foreground">{noPayoutCount}</p>
                             </div>
                             <div>
-                                <p className="text-sm text-muted-foreground">Total Earnings</p>
-                                <p className="text-2xl font-bold">
-                                    {formatCurrency(
-                                        data.reduce((sum, d) => sum + (d.commission?.commissionEarned || 0), 0)
-                                    )}
-                                </p>
+                                <p className="text-sm text-muted-foreground">Draft</p>
+                                <p className="text-2xl font-bold text-amber-600">{draftCount}</p>
+                            </div>
+                            <div>
+                                <p className="text-sm text-muted-foreground">Published</p>
+                                <p className="text-2xl font-bold text-emerald-600">{publishedCount}</p>
                             </div>
                         </div>
                     </div>
                 )}
+
+                {/* Adjustments Table */}
+                {data.some(d => d.adjustments.length > 0) && (
+                    <div className="mt-8">
+                        <h2 className="text-xl font-semibold mb-4">Adjustments</h2>
+                        <div className="rounded-lg border">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Person</TableHead>
+                                        <TableHead>Type</TableHead>
+                                        <TableHead className="text-right">Amount</TableHead>
+                                        <TableHead className="text-right">Net Impact on Payout</TableHead>
+                                        <TableHead>Reason</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {data.flatMap((item) =>
+                                        item.adjustments.map((adj) => {
+                                            // For REVENUE: net impact is the commission delta
+                                            // For FIXED_BONUS: net impact is the amount directly
+                                            const isRevenue = adj.adjustmentType === "REVENUE";
+                                            const netImpact = isRevenue
+                                                ? item.revenueAdjustmentImpact
+                                                : adj.amount;
+
+                                            return (
+                                                <TableRow key={adj.id}>
+                                                    <TableCell className="font-medium">
+                                                        {item.user.name}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Badge
+                                                            variant="outline"
+                                                            className={
+                                                                isRevenue
+                                                                    ? "bg-purple-500/15 text-purple-700 border-purple-500/20"
+                                                                    : "bg-green-500/15 text-green-700 border-green-500/20"
+                                                            }
+                                                        >
+                                                            {isRevenue ? "Revenue" : "Fixed Bonus"}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell className="text-right font-mono">
+                                                        {formatCurrency(adj.amount)}
+                                                    </TableCell>
+                                                    <TableCell className="text-right font-mono font-medium">
+                                                        <span className={netImpact >= 0 ? "text-emerald-600" : "text-red-600"}>
+                                                            {netImpact >= 0 ? "+" : ""}{formatCurrency(netImpact)}
+                                                        </span>
+                                                    </TableCell>
+                                                    <TableCell className="text-muted-foreground max-w-xs truncate">
+                                                        {adj.reason}
+                                                    </TableCell>
+                                                </TableRow>
+                                            );
+                                        })
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </div>
+                )}
             </div>
+
+            {/* Adjustment Dialog */}
+            <AdjustmentDialog
+                open={adjustmentDialog.open}
+                onOpenChange={(open) => setAdjustmentDialog({ ...adjustmentDialog, open })}
+                userId={adjustmentDialog.userId}
+                userName={adjustmentDialog.userName}
+                month={selectedMonth}
+                onSuccess={refreshData}
+            />
         </div>
     );
 }

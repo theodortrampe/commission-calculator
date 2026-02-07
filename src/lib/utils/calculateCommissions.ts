@@ -15,6 +15,8 @@ export interface CalculateCommissionsInput {
     userId: string;
     startDate: Date;
     endDate: Date;
+    /** Optional additional revenue from REVENUE adjustments */
+    revenueAdjustment?: number;
 }
 
 /**
@@ -33,7 +35,7 @@ export interface CalculateCommissionsInput {
 export async function calculateCommissions(
     input: CalculateCommissionsInput
 ): Promise<CommissionResult> {
-    const { userId, startDate, endDate } = input;
+    const { userId, startDate, endDate, revenueAdjustment = 0 } = input;
 
     // Get the month from startDate (assuming calculations are monthly)
     const periodMonth = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
@@ -67,8 +69,9 @@ export async function calculateCommissions(
         },
     });
 
-    // Calculate total revenue
-    const totalRevenue = orders.reduce((sum, order) => sum + order.convertedUsd, 0);
+    // Calculate total revenue (including any revenue adjustments)
+    const orderRevenue = orders.reduce((sum, order) => sum + order.convertedUsd, 0);
+    const totalRevenue = orderRevenue + revenueAdjustment;
 
     // Calculate attainment percentage
     const attainmentPercent = (totalRevenue / periodData.quota) * 100;
@@ -118,6 +121,7 @@ export async function calculateCommissions(
             effectiveRate: periodData.effectiveRate,
             planName: plan?.name ?? null,
             ote: periodData.ote,
+            baseSalary: periodData.baseSalary,
         },
     };
 }

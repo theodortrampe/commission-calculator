@@ -30,9 +30,10 @@ model User {
   reports   User[]   @relation("ManagerToRep")
 
   // Data
-  periodData UserPeriodData[]
-  orders     Order[]
-  payouts    Payout[]
+  periodData  UserPeriodData[]
+  orders      Order[]
+  payouts     Payout[]
+  adjustments Adjustment[]
 
   createdAt DateTime @default(now())
   @@map("users")
@@ -134,10 +135,14 @@ model CompPlan {
 // --------------------------------------
 // *Real-time views do NOT query this table. They query Orders + PeriodData directly.*
 
+enum AdjustmentType {
+  REVENUE       // Additional bookings $ that flows through commission calculation
+  FIXED_BONUS   // Fixed $ bonus added directly to final payout
+}
+
 enum PayoutStatus {
   DRAFT
   PUBLISHED
-  PAID
 }
 
 model Payout {
@@ -160,12 +165,21 @@ model Payout {
 }
 
 model Adjustment {
-  id          String   @id @default(uuid())
-  amount      Float    
-  reason      String   
-  payoutId    String
-  payout      Payout   @relation(fields: [payoutId], references: [id])
-  createdAt   DateTime @default(now())
+  id             String         @id @default(uuid())
+  amount         Float    
+  reason         String   
+  adjustmentType AdjustmentType @default(FIXED_BONUS)
+  
+  // Link to user and period (allows adjustments before payout exists)
+  userId         String
+  user           User           @relation(fields: [userId], references: [id])
+  month          DateTime
+  
+  // Optional link to payout (connected when payout is generated)
+  payoutId       String?
+  payout         Payout?        @relation(fields: [payoutId], references: [id])
+  
+  createdAt      DateTime       @default(now())
 
   @@map("adjustments")
 }

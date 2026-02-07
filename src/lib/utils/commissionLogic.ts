@@ -43,6 +43,7 @@ export interface CommissionResult {
         effectiveRate: number;
         planName: string | null;
         ote: number;
+        baseSalary: number;
     };
 }
 
