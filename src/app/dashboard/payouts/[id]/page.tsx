@@ -1,7 +1,7 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { format } from "date-fns";
-import { auth } from "../../../../../auth";
+import { auth } from "@/auth";
 import { getRepPayoutById } from "../actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-import { auth, signOut } from "../../../auth";
+import { auth, signOut } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getDashboardData, getAvailableMonths } from "./actions";
 import { DashboardClient } from "./dashboard-client";

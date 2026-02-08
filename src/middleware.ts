@@ -1,4 +1,4 @@
-import { authMiddleware as auth } from "../auth.edge";
+import { authMiddleware as auth } from "./auth.edge";
 import { NextResponse } from "next/server";
 
 export default auth((req) => {

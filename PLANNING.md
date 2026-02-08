@@ -1,40 +1,66 @@
 # Project Roadmap & Planning
 
 ## Current Status (Feb 7, 2026)
-- ✅ **Authentication**: Role-based access (Admin/Rep) via Auth.js.
+- ✅ **Authentication**: Role-based access (Admin/Rep) via Auth.js (Google OAuth + credentials).
 - ✅ **Core Calculation**: Commission logic with accelerators and kickers.
 - ✅ **Data Import**: Consolidated CSV/Excel & BigQuery ingestion.
 - ✅ **Payouts**: Admin payout management (draft/publish) and rep dashboard.
+- ✅ **Order Management**: View orders, manual entry/edit.
+- ✅ **Rep Self-Service**: Payout history, adjustments view.
 
-## Next Priorities
-
-### 1. Reporting & Analytics 📊
+## Priority 1: Reporting & Analytics 📊
 **Goal**: Provide deeper insights into performance trends.
 - [ ] **Historical Earnings Chart**: Visual graph of earnings over last 12 months.
 - [ ] **Quota Attainment Trends**: Month-over-month attainment comparison.
 - [ ] **Team Performance**: Admin view of leaderboard or team averages.
+- [ ] **Payout Forecast**: Estimate end-of-month payout based on current pipeline.
 
-### 2. User Management 👥
+## Priority 2: User Management 👥
 **Goal**: Allow admins to manage users directly in the app.
 - [ ] **User Directory**: List all users, edit roles, assign managers.
 - [ ] **Invite System**: Send email invites to new reps.
 - [ ] **Deactivation**: Handle rep departures (offboarding).
 
-### 3. Notification System 🔔
+## Priority 3: Comp Plan Management ⚙️
+**Goal**: Flexible configuration of compensation structures.
+- [ ] **Comp Plan Editor**: UI to create/edit accelerator tiers and kickers.
+- [ ] **Plan Versioning**: Effective dates for plan changes.
+- [ ] **Plan Assignment**: Associate specific plans with specific users/roles.
+- [ ] **Split Comp Plans**: Support different rates by product category.
+
+## Priority 4: Audit & Compliance 🛡️
+**Goal**: Ensure data integrity and accountability.
+- [ ] **Adjustment Approval Workflow**: Require manager approval for manual adjustments.
+- [ ] **Payout Change History**: Track changes to finalized payouts.
+- [ ] **Audit Logs**: Log who changed what (adjustments, plan changes, user roles).
+- [ ] **Manager Sign-off**: Formal acknowledgement of payouts.
+
+## Priority 5: Infrastructure & Security 🔒
+**Goal**: Scalability, stability, and security.
+- [ ] **API Key Protection**: Secure BigQuery ingestion endpoints.
+- [ ] **Rate Limiting**: Protect API against abuse.
+- [ ] **Performance**:
+    - [ ] Parallelize commission calculations.
+    - [ ] Cache period data lookups.
+    - [ ] Optimize N+1 queries.
+- [ ] **Testing**:
+    - [ ] E2E tests with Playwright (Critical flows: Import -> Calculate -> Payout).
+    - [ ] Integration tests for API endpoints.
+- [ ] **Deployment**:
+    - [ ] CI/CD pipeline (GitHub Actions).
+    - [ ] Database migrations strategy for production.
+
+## Priority 6: Notification System 🔔
 **Goal**: Keep users informed of important events.
-- [ ] **Email Integration**: Connect `resend` or `sendgrid` to the `notify` stub.
-- [ ] **Events**:
-    - "Payout Published" (to Rep)
-    - "Quota Attained" (to Rep/Manager)
-    - "Import Failed" (to Admin)
+- [ ] **Email Integration**: Connect `resend` or `sendgrid`.
+- [ ] **Event Triggers**:
+    - "Payout Published" (to Rep).
+    - "Quota Attained" (to Rep/Manager).
+    - "Import Failed" (to Admin).
+- [ ] **Slack Integration**: Notifications for published payouts.
 
-### 4. Testing & Reliability 🧪
-**Goal**: Ensure system stability.
-- [ ] **Unit Tests**: Test commission logic edge cases (jest/vitest).
-- [ ] **E2E Tests**: Verify critical flows like Import -> Calculate -> Payout (Playwright).
-- [ ] **Error Boundaries**: Better UI handling for crashes.
-
-### 5. Security Enhancements 🔒
-- [ ] **API Key Protection**: Secure the BigQuery ingestion endpoints.
-- [ ] **Rate Limiting**: Protect against abuse.
-- [ ] **Audit Logs**: Track who changed what (adjustments, plan changes).
+## Nice to Have / UX Improvements ✨
+- [ ] **Dark Mode Toggle**: System-wide theme preference.
+- [ ] **Mobile Responsiveness**: Better mobile view for payouts table.
+- [ ] **Keyboard Shortcuts**: Quick navigation for power users.
+- [ ] **Salesforce Sync**: Direct order synchronization.

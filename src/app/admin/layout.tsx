@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { auth, signOut } from "../../../auth";
+import { auth, signOut } from "@/auth";
 
 export const metadata: Metadata = {
     title: "Admin | Commission Calculator",
