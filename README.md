@@ -54,7 +54,7 @@ A Next.js application for managing sales rep commission calculations, payouts, a
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/theodore-trampe/commission-calculator.git
+git clone https://github.com/theodortrampe/commission-calculator.git
 cd commission-calculator
 ```
 
