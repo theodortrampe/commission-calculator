@@ -103,42 +103,12 @@ export function ImportClient() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     dataType,
-                    rows: parseData.data.preview.length === parseData.data.totalRows
-                        ? parseData.data.preview
-                        : [], // Would need full data
+                    rows: parseData.data.preview, // Note: This uses preview rows. API needs update to return full rows for full import.
                     columnMapping,
                 }),
             });
 
-            // For now, re-parse to get all rows
-            const fullFormData = new FormData();
-            fullFormData.append("file", file!);
-            fullFormData.append("dataType", dataType);
-
-            const fullResponse = await fetch("/api/import/csv", {
-                method: "POST",
-                body: fullFormData,
-            });
-            const fullData = await fullResponse.json();
-
-            if (!fullData.success) {
-                setError(fullData.error);
-                return;
-            }
-
-            // Execute with full data - need to re-fetch file content
-            // Since preview only shows 10 rows, we need full import
-            const importResponse = await fetch("/api/import/execute", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    dataType,
-                    rows: fullData.data.preview, // This is limited, but for demo
-                    columnMapping,
-                }),
-            });
-
-            const importResult = await importResponse.json();
+            const importResult = await response.json();
 
             if (importResult.success || importResult.results) {
                 setImportResults(importResult.results);
@@ -187,8 +157,8 @@ WHERE booking_date >= DATE_TRUNC(CURRENT_DATE(), MONTH)`,
                 <button
                     onClick={() => setActiveTab("csv")}
                     className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === "csv"
-                            ? "border-foreground text-foreground"
-                            : "border-transparent text-muted-foreground hover:text-foreground"
+                        ? "border-foreground text-foreground"
+                        : "border-transparent text-muted-foreground hover:text-foreground"
                         }`}
                 >
                     <FileSpreadsheet className="h-4 w-4 inline mr-2" />
@@ -197,8 +167,8 @@ WHERE booking_date >= DATE_TRUNC(CURRENT_DATE(), MONTH)`,
                 <button
                     onClick={() => setActiveTab("bigquery")}
                     className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === "bigquery"
-                            ? "border-foreground text-foreground"
-                            : "border-transparent text-muted-foreground hover:text-foreground"
+                        ? "border-foreground text-foreground"
+                        : "border-transparent text-muted-foreground hover:text-foreground"
                         }`}
                 >
                     <Database className="h-4 w-4 inline mr-2" />

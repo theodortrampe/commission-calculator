@@ -93,7 +93,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<IngestRes
             CANCELLED: OrderStatus.CANCELLED,
         };
 
-        const status = statusMap[body.status] ?? OrderStatus.PENDING;
+        const status = statusMap[body.status] ?? OrderStatus.APPROVED;
 
         // Check if order exists
         const existingOrder = await prisma.order.findUnique({
@@ -211,7 +211,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
                     DRAFT: OrderStatus.DRAFT,
                     CANCELLED: OrderStatus.CANCELLED,
                 };
-                const status = statusMap[row.status] ?? OrderStatus.PENDING;
+                const status = statusMap[row.status] ?? OrderStatus.APPROVED;
 
                 // Upsert order
                 await prisma.order.upsert({

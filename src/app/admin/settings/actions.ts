@@ -121,10 +121,10 @@ export async function updateCompPlanSettings(
                 accelerators: {
                     tiers: accelTiers,
                     description: acceleratorDescription,
-                },
+                } as object,
                 kickers: {
                     tiers: kickerTiers,
-                },
+                } as object,
             },
         });
 

@@ -169,7 +169,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                     const convertedEur = getValue(row, "convertedEur")
                         ? Number(getValue(row, "convertedEur"))
                         : convertedUsd * 0.91;
-                    const statusStr = String(getValue(row, "status") || "PENDING").toUpperCase();
+                    const statusStr = String(getValue(row, "status") || "APPROVED").toUpperCase();
                     const bookingDateStr = String(getValue(row, "bookingDate") || "").trim();
 
                     if (!orderNumber) {
@@ -213,7 +213,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                         DRAFT: OrderStatus.DRAFT,
                         CANCELLED: OrderStatus.CANCELLED,
                     };
-                    const status = statusMap[statusStr] ?? OrderStatus.PENDING;
+                    const status = statusMap[statusStr] ?? OrderStatus.APPROVED;
 
                     // Upsert order
                     await prisma.order.upsert({

@@ -249,7 +249,7 @@ export function PayoutsClient({ initialData, currentMonth }: PayoutsClientProps)
                                     const attainment = commission?.attainmentPercent || 0;
                                     const earnings = commission?.commissionEarned || 0;
                                     const adjustedEarnings = earnings + item.fixedBonusTotal;
-                                    const hasAdjustments = item.revenueAdjustmentTotal !== 0 || item.fixedBonusTotal !== 0;
+
 
                                     return (
                                         <TableRow key={item.user.id}>

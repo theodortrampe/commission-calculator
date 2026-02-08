@@ -19,10 +19,15 @@ enum Role {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  name      String
-  role      Role     @default(REP)
+  id            String    @id @default(uuid())
+  email         String    @unique
+  name          String
+  role          Role      @default(REP)
+  
+  // Auth fields
+  passwordHash  String?   // null for OAuth-only users
+  emailVerified DateTime?
+  image         String?
   
   // Hierarchy
   managerId String?
@@ -34,9 +39,45 @@ model User {
   orders      Order[]
   payouts     Payout[]
   adjustments Adjustment[]
+  
+  // Auth.js relations
+  accounts    Account[]
+  sessions    Session[]
 
   createdAt DateTime @default(now())
   @@map("users")
+}
+
+// Auth.js Account model (for OAuth providers)
+model Account {
+  id                String  @id @default(uuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+// Auth.js Session model
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
 }
 
 // --------------------------------------

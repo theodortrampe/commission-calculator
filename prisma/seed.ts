@@ -1,7 +1,8 @@
 import "dotenv/config";
 import { PrismaClient, Role, OrderStatus, PayoutFreq } from "@prisma/client";
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
-import Database from "better-sqlite3";
+
+import bcrypt from "bcryptjs";
 
 // Create adapter
 const adapter = new PrismaBetterSqlite3({ url: "file:./prisma/dev.db" });
@@ -9,10 +10,16 @@ const adapter = new PrismaBetterSqlite3({ url: "file:./prisma/dev.db" });
 // Create Prisma client with adapter
 const prisma = new PrismaClient({ adapter });
 
+// Pre-hash passwords for seed users
+const ADMIN_PASSWORD = bcrypt.hashSync("admin123", 10);
+const REP_PASSWORD = bcrypt.hashSync("rep123", 10);
+
 async function main() {
     console.log("🌱 Starting seed...");
 
-    // Clean up existing data
+    // Clean up existing data (in correct order for foreign keys)
+    await prisma.session.deleteMany();
+    await prisma.account.deleteMany();
     await prisma.adjustment.deleteMany();
     await prisma.payout.deleteMany();
     await prisma.order.deleteMany();
@@ -41,22 +48,24 @@ async function main() {
     });
     console.log("✅ Created CompPlan:", compPlan.name);
 
-    // Create Admin user
+    // Create Admin user with password
     const admin = await prisma.user.create({
         data: {
             email: "admin@company.com",
             name: "Admin User",
             role: Role.ADMIN,
+            passwordHash: ADMIN_PASSWORD,
         },
     });
     console.log("✅ Created Admin:", admin.name);
 
-    // Create Sales Reps
+    // Create Sales Reps with passwords
     const johnDoe = await prisma.user.create({
         data: {
             email: "john.doe@company.com",
             name: "John Doe",
             role: Role.REP,
+            passwordHash: REP_PASSWORD,
         },
     });
     console.log("✅ Created Rep:", johnDoe.name);
@@ -66,6 +75,7 @@ async function main() {
             email: "jane.smith@company.com",
             name: "Jane Smith",
             role: Role.REP,
+            passwordHash: REP_PASSWORD,
         },
     });
     console.log("✅ Created Rep:", janeSmith.name);

@@ -121,6 +121,13 @@ Tests cover commission calculation with accelerators, kickers, and edge cases.
 3. Set `DATABASE_URL` environment variable
 4. Deploy
 
+
+## Documentation
+
+- [Project Roadmap & Planning](./PLANNING.md)
+- [Data Import Guide](./docs/data_import_guide.md)
+- [Cleanup Log (Feb 7, 2026)](./docs/cleanup_log.md)
+
 ## License
 
 MIT

@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { calculateCommissions, CommissionResult } from "@/lib/utils/calculateCommissions";
-import { Order, OrderStatus, PayoutStatus } from "@prisma/client";
+import { Order, PayoutStatus } from "@prisma/client";
 
 export interface DashboardData {
     commission: CommissionResult;
@@ -84,17 +84,17 @@ export async function getAvailableMonths(userId: string): Promise<Date[]> {
 }
 
 /**
- * Get the current user for demo purposes.
- * In production, this would use authentication.
+ * Get recent payouts for dashboard display (last 3)
  */
-export async function getCurrentDemoUser() {
-    // For demo, return Jane Smith to showcase accelerator
-    const user = await prisma.user.findFirst({
-        where: {
-            role: "REP",
-            name: "Jane Smith",
+export async function getRecentPayouts(userId: string) {
+    const payouts = await prisma.payout.findMany({
+        where: { userId },
+        include: {
+            adjustments: true,
         },
+        orderBy: { periodStart: "desc" },
+        take: 3,
     });
 
-    return user;
+    return payouts;
 }

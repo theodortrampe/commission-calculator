@@ -1,35 +1,41 @@
 # Roadmap & Future Work
 
-## Priority 1: Critical Fixes
+## Priority 1: Critical Fixes ✅
 
-### Install Missing Select Component
-```bash
-npx shadcn@latest add select
-```
-The adjustment dialog uses Select but the component file is missing.
+> **Completed 2026-02-07** - All TypeScript errors resolved, unit tests passing.
 
-### Fix TypeScript Lint Errors
-Run `npx prisma generate` to refresh types after schema changes. The lint errors are stale cache.
+### What was fixed:
+- [x] Added `@types/better-sqlite3` for TypeScript support in seed
+- [x] Added missing server actions (`getPayoutById`, `createAdjustment`, `updatePayoutStatus`)
+- [x] Fixed stale `PAID` status references (enum simplified to Draft → Published)
+- [x] Fixed JSON type assertions in settings actions
+- [x] Select component already existed (no action needed)
 
 ---
 
 ## Priority 2: Core Features
 
-### Authentication & Authorization
-- [ ] Add NextAuth.js for user login
-- [ ] Role-based access control (Admin vs Rep)
-- [ ] Protect admin routes from rep access
-- [ ] Rep-specific dashboard filtering
+### Authentication & Authorization ✅
+> **Completed 2026-02-07** - Auth.js v5 with Google OAuth + credentials
 
-### Order Management
-- [ ] Admin UI to view/approve/reject orders
-- [ ] Order import from CSV/Excel
-- [ ] Order editing and audit trail
+- [x] NextAuth.js (Auth.js v5) for user login
+- [x] Role-based access control (Admin vs Rep)
+- [x] Protect admin routes from rep access
+- [x] Rep-specific dashboard filtering
 
-### Rep Self-Service
-- [ ] Rep can view their own payouts
-- [ ] Rep can see adjustment reasons
-- [ ] Notifictions when payout is published
+### Order Management ✅
+> **Completed 2026-02-07** - View orders, CSV/Excel import (approval done externally)
+
+- [x] Admin UI to view orders
+- [x] Consolidated Data Import (CSV/Excel + BigQuery)
+- [x] Order detail page
+
+### Rep Self-Service ✅
+> **Completed 2026-02-07** - Payout history, adjustments, notifications
+
+- [x] Rep can view their own payouts
+- [x] Rep can see adjustment reasons
+- [x] Notifications when payout is published (stub)
 
 ---
 

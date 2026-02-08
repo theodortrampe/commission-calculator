@@ -54,8 +54,7 @@ function formatCurrency(amount: number): string {
 
 const statusColors: Record<PayoutStatus, string> = {
     DRAFT: "bg-amber-500/15 text-amber-700 border-amber-500/20",
-    PUBLISHED: "bg-blue-500/15 text-blue-700 border-blue-500/20",
-    PAID: "bg-emerald-500/15 text-emerald-700 border-emerald-500/20",
+    PUBLISHED: "bg-emerald-500/15 text-emerald-700 border-emerald-500/20",
 };
 
 export function PayoutDetailClient({ initialData }: PayoutDetailClientProps) {
@@ -308,18 +307,9 @@ export function PayoutDetailClient({ initialData }: PayoutDetailClientProps) {
                         </Button>
                     )}
                     {payout.status === "PUBLISHED" && (
-                        <Button
-                            onClick={() => handleStatusUpdate("PAID")}
-                            disabled={isPending}
-                        >
-                            {isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
-                            Mark as Paid
-                        </Button>
-                    )}
-                    {payout.status === "PAID" && (
                         <p className="text-emerald-600 flex items-center gap-2">
                             <Check className="h-4 w-4" />
-                            This payout has been completed
+                            This payout has been published
                         </p>
                     )}
                 </div>

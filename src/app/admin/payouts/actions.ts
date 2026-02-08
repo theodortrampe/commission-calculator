@@ -5,6 +5,115 @@ import { prisma } from "@/lib/prisma";
 import { calculateCommissions, CommissionResult } from "@/lib/utils/calculateCommissions";
 import { Payout, PayoutStatus, User, Adjustment, AdjustmentType } from "@prisma/client";
 
+// Type for payout with its related data
+export interface PayoutWithAdjustments extends Payout {
+    user: User;
+    adjustments: Adjustment[];
+}
+
+/**
+ * Get a single payout by ID with user and adjustments
+ */
+export async function getPayoutById(payoutId: string): Promise<PayoutWithAdjustments | null> {
+    const payout = await prisma.payout.findUnique({
+        where: { id: payoutId },
+        include: {
+            user: true,
+            adjustments: {
+                orderBy: { createdAt: "desc" },
+            },
+        },
+    });
+    return payout;
+}
+
+/**
+ * Create an adjustment for an existing payout (legacy per-payout adjustment)
+ */
+export async function createAdjustment(
+    payoutId: string,
+    amount: number,
+    reason: string
+): Promise<{ success: boolean; error?: string }> {
+    try {
+        const payout = await prisma.payout.findUnique({
+            where: { id: payoutId },
+        });
+
+        if (!payout) {
+            return { success: false, error: "Payout not found" };
+        }
+
+        if (payout.status !== "DRAFT") {
+            return { success: false, error: "Can only adjust DRAFT payouts" };
+        }
+
+        // Create adjustment and update payout final amount
+        await prisma.$transaction([
+            prisma.adjustment.create({
+                data: {
+                    userId: payout.userId,
+                    payoutId: payoutId,
+                    month: payout.periodStart,
+                    amount,
+                    reason,
+                    adjustmentType: "FIXED_BONUS",
+                },
+            }),
+            prisma.payout.update({
+                where: { id: payoutId },
+                data: {
+                    finalPayout: payout.finalPayout + amount,
+                },
+            }),
+        ]);
+
+        revalidatePath("/admin/payouts");
+        revalidatePath(`/admin/payouts/${payoutId}`);
+
+        return { success: true };
+    } catch (_e) {
+        return { success: false, error: "Failed to create adjustment" };
+    }
+}
+
+/**
+ * Update payout status
+ */
+export async function updatePayoutStatus(
+    payoutId: string,
+    newStatus: PayoutStatus
+): Promise<{ success: boolean; error?: string }> {
+    try {
+        const payout = await prisma.payout.update({
+            where: { id: payoutId },
+            data: { status: newStatus },
+            include: { user: true },
+        });
+
+        // Trigger notification when payout is published
+        if (newStatus === "PUBLISHED") {
+            // Dynamic import to avoid Edge runtime issues
+            const { notifyPayoutPublished } = await import("@/lib/notifications");
+            await notifyPayoutPublished({
+                userId: payout.userId,
+                userEmail: payout.user.email,
+                userName: payout.user.name,
+                payoutId: payout.id,
+                payoutAmount: payout.finalPayout,
+                periodMonth: payout.periodStart,
+            });
+        }
+
+        revalidatePath("/admin/payouts");
+        revalidatePath(`/admin/payouts/${payoutId}`);
+
+        return { success: true };
+    } catch (_e) {
+        return { success: false, error: "Failed to update payout status" };
+    }
+}
+
 export interface UserEarningsSummary {
     user: User;
     commission: CommissionResult | null;
