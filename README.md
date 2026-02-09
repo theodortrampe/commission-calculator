@@ -52,33 +52,54 @@ A Next.js application for managing sales rep commission calculations, payouts, a
 
 ### Installation
 
-1. Clone the repository:
-```bash
-git clone https://github.com/theodortrampe/commission-calculator.git
-cd commission-calculator
-```
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/theodortrampe/commission-calculator.git
+   cd commission-calculator
+   ```
 
-2. Install dependencies:
-```bash
-npm install
-```
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
 
-3. Configure Environment:
-Create a `.env` file in the root directory:
-```env
-DATABASE_URL="file:./prisma/dev.db"
-```
+3. **Configure Environment:**
+   Create a `.env` file in the root directory:
+   ```env
+   DATABASE_URL="file:./prisma/dev.db"
+   ```
 
-4. Set up the database:
-```bash
-npx prisma db push
-npx prisma db seed
-```
+4. **Generate Auth Secret:**
+   ```bash
+   npx auth secret
+   ```
 
-5. Start the development server:
-```bash
-npm run dev
-```
+5. **Set up the database:**
+   ```bash
+   # Push schema to database
+   npx prisma db push
+
+   # Generate Prisma Client (Important!)
+   npx prisma generate
+
+   # Seed the database with sample data
+   npx prisma db execute --file prisma/seed.sql
+   ```
+
+6. **Start the development server:**
+   ```bash
+   npm run dev
+   ```
+
+7. **Open [http://localhost:3000](http://localhost:3000)**
+
+### Default Login Credentials
+
+After seeding, you can log in with:
+
+- **Admin:** `admin@company.com` / `admin123`
+- **Sales Rep:** `john.doe@company.com` / `admin123`
+
 
 6. Open [http://localhost:3000](http://localhost:3000)
 

@@ -16,10 +16,10 @@ INSERT INTO comp_plans (id, name, frequency, accelerators) VALUES
 );
 
 -- Create Users
-INSERT INTO users (id, email, name, role, createdAt) VALUES 
-('admin-001', 'admin@company.com', 'Admin User', 'ADMIN', datetime('now')),
-('rep-001', 'john.doe@company.com', 'John Doe', 'REP', datetime('now')),
-('rep-002', 'jane.smith@company.com', 'Jane Smith', 'REP', datetime('now'));
+INSERT INTO users (id, email, name, role, passwordHash, createdAt) VALUES 
+('admin-001', 'admin@company.com', 'Admin User', 'ADMIN', '$2b$10$UGrvs/lwm.flEIlW3eNkIuy568EbkjLEjAwfPbX2RH3kwsHpbFD1a', datetime('now')),
+('rep-001', 'john.doe@company.com', 'John Doe', 'REP', '$2b$10$UGrvs/lwm.flEIlW3eNkIuy568EbkjLEjAwfPbX2RH3kwsHpbFD1a', datetime('now')),
+('rep-002', 'jane.smith@company.com', 'Jane Smith', 'REP', '$2b$10$UGrvs/lwm.flEIlW3eNkIuy568EbkjLEjAwfPbX2RH3kwsHpbFD1a', datetime('now'));
 
 -- Create UserPeriodData for current month (February 2026)
 INSERT INTO user_period_data (id, userId, month, title, quota, baseSalary, ote, effectiveRate, planId) VALUES 
