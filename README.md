@@ -10,7 +10,8 @@ A Next.js application for managing sales rep commission calculations, payouts, a
 - Month-by-month performance comparison
 - Stats cards showing current month earnings, % to quota, and pending payouts
 
-### Admin Payouts (`/admin/payouts`)
+### Admin Panel
+#### Payouts (`/admin/payouts`)
 - **Consolidated payouts table** with all data inline:
   - Variable Bonus (OTE - Base Salary)
   - Quota, Revenue, Adjusted Revenue
@@ -23,10 +24,18 @@ A Next.js application for managing sales rep commission calculations, payouts, a
 - **Adjustments table** showing impact on payouts
 - Export payout data to CSV
 
-### Admin Settings (`/admin/settings`)
-- Configure compensation plans with accelerator tiers
-- Enable/disable kicker bonuses
-- Set base rate multipliers
+#### Plans Management (`/admin/plans`) [NEW]
+- Create and manage Compensation Plans (e.g., "AE 2024", "SDR Q1")
+- Version control for plans (Draft, Active, Scheduled)
+- **Configure Logic**: Define accelerators, kickers, and base rates per version
+
+#### Assignments (`/admin/assignments`) [NEW]
+- Assign plans to specific Users or Roles (e.g., "All Managers")
+- Date-based assignments (Start/End dates)
+- Automatically determines which plan version applies to a given period
+
+#### Admin Settings (`/admin/settings`)
+- (Legacy) Global settings have been moved to Plan Assignments.
 
 ### Data Ingestion API (`/api/ingest/bigquery`)
 - RESTful API for ingesting sales data

@@ -43,6 +43,18 @@ export default async function AdminLayout({
                                 Orders
                             </Link>
                             <Link
+                                href="/admin/plans"
+                                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                            >
+                                Plans
+                            </Link>
+                            <Link
+                                href="/admin/assignments"
+                                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                            >
+                                Assignments
+                            </Link>
+                            <Link
                                 href="/admin/settings"
                                 className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
                             >
@@ -75,8 +87,8 @@ export default async function AdminLayout({
                         </form>
                     </div>
                 </div>
-            </header>
+            </header >
             <main>{children}</main>
-        </div>
+        </div >
     );
 }

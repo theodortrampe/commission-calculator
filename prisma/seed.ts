@@ -18,22 +18,35 @@ async function main() {
     console.log("🌱 Starting seed...");
 
     // Clean up existing data (in correct order for foreign keys)
+    // Clean up existing data (in correct order for foreign keys)
     await prisma.session.deleteMany();
     await prisma.account.deleteMany();
     await prisma.adjustment.deleteMany();
     await prisma.payout.deleteMany();
     await prisma.order.deleteMany();
     await prisma.userPeriodData.deleteMany();
+    await prisma.planAssignment.deleteMany(); // Delete assignments first
+    await prisma.compPlanVersion.deleteMany(); // Delete versions before plans
     await prisma.user.deleteMany();
     await prisma.compPlan.deleteMany();
 
     console.log("🧹 Cleaned up existing data");
 
-    // Create CompPlan with accelerator structure
+    // Create CompPlan with accelerator structure (VERSIONED)
     const compPlan = await prisma.compPlan.create({
         data: {
             name: "AE 2024 Accelerator Plan",
             frequency: PayoutFreq.MONTHLY,
+            description: "Standard AE plan with accelerators",
+        }
+    });
+    console.log("✅ Created CompPlan:", compPlan.name);
+
+    const compPlanVersion = await prisma.compPlanVersion.create({
+        data: {
+            planId: compPlan.id,
+            versionNumber: 1,
+            effectiveFrom: new Date(2025, 0, 1), // Jan 1, 2025
             baseRateMultiplier: 1.0,
             accelerators: {
                 tiers: [
@@ -44,9 +57,10 @@ async function main() {
                 ],
                 description: "1x up to 100%, 1.5x from 100-125%, 2x from 125-150%, 2.5x above 150%",
             },
-        },
+        }
     });
-    console.log("✅ Created CompPlan:", compPlan.name);
+
+    console.log("✅ Created CompPlan Version:", compPlanVersion.versionNumber);
 
     // Create Admin user with password
     const admin = await prisma.user.create({
@@ -70,6 +84,15 @@ async function main() {
     });
     console.log("✅ Created Rep:", johnDoe.name);
 
+    // Assign Plan to John Doe
+    await prisma.planAssignment.create({
+        data: {
+            userId: johnDoe.id,
+            planId: compPlan.id,
+            startDate: new Date(2025, 0, 1),
+        }
+    });
+
     const janeSmith = await prisma.user.create({
         data: {
             email: "jane.smith@company.com",
@@ -79,6 +102,15 @@ async function main() {
         },
     });
     console.log("✅ Created Rep:", janeSmith.name);
+
+    // Assign Plan to Jane Smith
+    await prisma.planAssignment.create({
+        data: {
+            userId: janeSmith.id,
+            planId: compPlan.id,
+            startDate: new Date(2025, 0, 1),
+        }
+    });
 
     // Calculate months
     const now = new Date();
@@ -95,7 +127,7 @@ async function main() {
             baseSalary: 80000,
             ote: 160000,
             effectiveRate: (160000 - 80000) / 150000,
-            planId: compPlan.id,
+            planVersionId: compPlanVersion.id,
         },
     });
 
@@ -108,7 +140,7 @@ async function main() {
             baseSalary: 80000,
             ote: 160000,
             effectiveRate: (160000 - 80000) / 140000,
-            planId: compPlan.id,
+            planVersionId: compPlanVersion.id,
         },
     });
     console.log("✅ Created UserPeriodData for John Doe");
@@ -123,7 +155,7 @@ async function main() {
             baseSalary: 60000,
             ote: 120000,
             effectiveRate: (120000 - 60000) / 100000,
-            planId: compPlan.id,
+            planVersionId: compPlanVersion.id,
         },
     });
 
@@ -136,7 +168,7 @@ async function main() {
             baseSalary: 60000,
             ote: 120000,
             effectiveRate: (120000 - 60000) / 90000,
-            planId: compPlan.id,
+            planVersionId: compPlanVersion.id,
         },
     });
     console.log("✅ Created UserPeriodData for Jane Smith");

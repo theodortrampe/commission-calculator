@@ -41,13 +41,33 @@ export async function calculateCommissions(
     const periodMonth = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
 
     // Fetch UserPeriodData for the relevant month
+    // Use a range to be safe against timezone differences (UTC vs Local)
+    // The previous implementation was adding/subtracting time based on local timezone which caused issues.
+    // We want the full UTC day range.
+
+    // Create new dates to avoid mutating the original
+    const startOfMonth = new Date(Date.UTC(periodMonth.getFullYear(), periodMonth.getMonth(), 1));
+    const startOfNextMonth = new Date(Date.UTC(periodMonth.getFullYear(), periodMonth.getMonth() + 1, 1));
+
+    // Allow for a buffer to catch entries that might be slightly off due to timezone conversion during seed
+    // e.g. 2026-01-31T23:00:00.000Z instead of 2026-02-01T00:00:00.000Z
+    startOfMonth.setHours(startOfMonth.getHours() - 12);
+    startOfNextMonth.setHours(startOfNextMonth.getHours() + 12);
+
     const periodData = await prisma.userPeriodData.findFirst({
         where: {
             userId,
-            month: periodMonth,
+            month: {
+                gte: startOfMonth,
+                lt: startOfNextMonth,
+            },
         },
         include: {
-            plan: true,
+            planVersion: {
+                include: {
+                    plan: true,
+                }
+            },
         },
     });
 
@@ -55,6 +75,53 @@ export async function calculateCommissions(
         throw new Error(
             `No period data found for user ${userId} in ${periodMonth.toISOString().slice(0, 7)}`
         );
+    }
+
+    // --- Dynamic Plan Version Lookup ---
+    // Check for an active plan assignment for this period
+    const activeAssignment = await prisma.planAssignment.findFirst({
+        where: {
+            userId,
+            startDate: { lte: periodMonth },
+            OR: [
+                { endDate: null },
+                { endDate: { gte: periodMonth } }
+            ]
+        },
+        include: {
+            plan: {
+                include: {
+                    versions: {
+                        orderBy: { effectiveFrom: 'desc' }
+                    }
+                }
+            }
+        },
+        orderBy: { startDate: 'desc' }
+    });
+
+    let planVersion = periodData.planVersion;
+
+    if (activeAssignment) {
+        // Find the version effective for this period
+        const effectiveVersion = activeAssignment.plan.versions.find(v => v.effectiveFrom <= periodMonth);
+
+        if (effectiveVersion) {
+            // If the periodData points to a different version (or none), update it
+            if (periodData.planVersionId !== effectiveVersion.id) {
+                console.log(`Updating plan version for user ${userId} period ${periodMonth.toISOString()} to ${effectiveVersion.id}`);
+                await prisma.userPeriodData.update({
+                    where: { id: periodData.id },
+                    data: { planVersionId: effectiveVersion.id }
+                });
+
+                // Use the new version for calculation
+                planVersion = {
+                    ...effectiveVersion,
+                    plan: activeAssignment.plan
+                };
+            }
+        }
     }
 
     // Fetch all APPROVED orders within the date range
@@ -76,15 +143,15 @@ export async function calculateCommissions(
     // Calculate attainment percentage
     const attainmentPercent = (totalRevenue / periodData.quota) * 100;
 
-    // Get plan config
-    const plan = periodData.plan;
-    const baseRateMultiplier = plan?.baseRateMultiplier ?? 1.0;
-    const acceleratorsEnabled = plan?.acceleratorsEnabled ?? true;
-    const kickersEnabled = plan?.kickersEnabled ?? false;
+    // Get plan config from VERSION
+    // planVersion is already set above
+    const baseRateMultiplier = planVersion?.baseRateMultiplier ?? 1.0;
+    const acceleratorsEnabled = planVersion?.acceleratorsEnabled ?? true;
+    const kickersEnabled = planVersion?.kickersEnabled ?? false;
 
     // Calculate base + accelerator commission
     const acceleratorConfig = acceleratorsEnabled
-        ? (plan?.accelerators as AcceleratorConfig | null)
+        ? (planVersion?.accelerators as AcceleratorConfig | null)
         : null;
 
     const { commissionEarned: baseCommissionEarned, breakdown } = calculateCommissionWithAccelerators(
@@ -96,7 +163,7 @@ export async function calculateCommissions(
     );
 
     // Calculate kickers
-    const kickerConfig = plan?.kickers as KickerConfig | null;
+    const kickerConfig = planVersion?.kickers as KickerConfig | null;
     const { kickerAmount, kickersApplied } = calculateKickers(
         attainmentPercent,
         periodData.ote,
@@ -119,7 +186,7 @@ export async function calculateCommissions(
         periodData: {
             quota: periodData.quota,
             effectiveRate: periodData.effectiveRate,
-            planName: plan?.name ?? null,
+            planName: planVersion?.plan.name ?? null,
             ote: periodData.ote,
             baseSalary: periodData.baseSalary,
         },
