@@ -186,7 +186,32 @@ model CompPlanVersion {
 
   createdAt   DateTime   @default(now())
 
+  // Relations
+  steps       RampStep[]
+
   @@map("comp_plan_versions")
+}
+
+model RampStep {
+  id             String   @id @default(uuid())
+  planVersionId  String
+  planVersion    CompPlanVersion @relation(fields: [planVersionId], references: [id], onDelete: Cascade)
+  
+  monthIndex     Int      // 1, 2, 3...
+  quotaPercentage Float   // 0.5 = 50%
+  guaranteedDraw Decimal? // Optional fixed amount
+  drawType       DrawType @default(NON_RECOVERABLE)
+  
+  disableAccelerators Boolean @default(true)
+  disableKickers      Boolean @default(true)
+
+  @@unique([planVersionId, monthIndex])
+  @@map("ramp_steps")
+}
+
+enum DrawType {
+  NON_RECOVERABLE
+  RECOVERABLE
 }
 
 model PlanAssignment {

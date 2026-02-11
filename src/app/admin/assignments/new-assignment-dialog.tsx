@@ -40,9 +40,7 @@ const formSchema = z.object({
     userId: z.string().optional(),
     role: z.nativeEnum(Role).optional(),
     planId: z.string().min(1, "Plan is required"),
-    startDate: z.date({
-        required_error: "Start date is required",
-    }),
+    startDate: z.date(),
     endDate: z.date().optional(),
 }).refine((data) => {
     if (data.assignType === "USER" && !data.userId) return false;

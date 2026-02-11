@@ -7,11 +7,6 @@ const globalForPrisma = globalThis as unknown as {
 
 function getPrismaClient(): PrismaClient {
   if (!globalForPrisma.prisma) {
-    try {
-      console.log('Resolving Prisma Client for adapter:', require.resolve('@prisma/client'));
-    } catch (e) {
-      console.log('Could not resolve @prisma/client');
-    }
     const adapter = new PrismaBetterSqlite3({ url: "file:./prisma/dev.db" });
     globalForPrisma.prisma = new PrismaClient({ adapter });
   }

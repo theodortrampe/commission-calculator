@@ -25,7 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { updateCompPlanVersion } from "../actions";
 
 const formSchema = z.object({
-    baseRateMultiplier: z.coerce.number().min(0),
+    baseRateMultiplier: z.number().min(0),
     acceleratorsEnabled: z.boolean(),
     kickersEnabled: z.boolean(),
     accelerators: z.string().optional(), // Try to parse as JSON on submit

@@ -14,7 +14,7 @@ interface BigQueryRow {
     quota: number;
     baseSalary: number;
     ote: number;
-    planId?: string;
+    planVersionId?: string;
     role?: "ADMIN" | "REP" | "MANAGER";
 }
 
@@ -126,7 +126,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<IngestRes
                 baseSalary: body.baseSalary,
                 ote: body.ote,
                 effectiveRate,
-                planId: body.planId || null,
+                planVersionId: body.planVersionId || null,
             },
             update: {
                 title: body.title,
@@ -134,7 +134,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<IngestRes
                 baseSalary: body.baseSalary,
                 ote: body.ote,
                 effectiveRate,
-                planId: body.planId || null,
+                planVersionId: body.planVersionId || null,
             },
         });
 
@@ -222,7 +222,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
                         baseSalary: row.baseSalary,
                         ote: row.ote,
                         effectiveRate,
-                        planId: row.planId || null,
+                        planVersionId: row.planVersionId || null,
                     },
                     update: {
                         title: row.title,
@@ -230,7 +230,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
                         baseSalary: row.baseSalary,
                         ote: row.ote,
                         effectiveRate,
-                        planId: row.planId || null,
+                        planVersionId: row.planVersionId || null,
                     },
                 });
 

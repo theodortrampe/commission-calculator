@@ -69,8 +69,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         };
 
         if (dataType === "compensation") {
-            // Get default plan
-            const defaultPlan = await prisma.compPlan.findFirst();
+            // Get default plan and its latest version
+            const defaultPlan = await prisma.compPlan.findFirst({
+                include: {
+                    versions: {
+                        orderBy: { effectiveFrom: "desc" },
+                        take: 1,
+                    },
+                },
+            });
+            const defaultVersionId = defaultPlan?.versions[0]?.id ?? null;
 
             for (let i = 0; i < rows.length; i++) {
                 try {
@@ -138,7 +146,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                             baseSalary,
                             ote,
                             effectiveRate,
-                            planId: defaultPlan?.id || null,
+                            planVersionId: defaultVersionId,
                         },
                         update: {
                             title: title || undefined,

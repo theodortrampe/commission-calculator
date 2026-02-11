@@ -1,7 +1,8 @@
 "use client";
 
-import { DollarSign, Target, Clock, TrendingUp, TrendingDown } from "lucide-react";
+import { DollarSign, Target, Clock, TrendingUp, TrendingDown, Calendar } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { CommissionResult } from "@/lib/utils/calculateCommissions";
 
 interface StatsCardsProps {
@@ -51,6 +52,11 @@ export function StatsCards({ commission, pendingPayoutsTotal, pendingPayoutsCoun
                             {commission.breakdown.tierApplied}
                         </p>
                     )}
+                    {(commission.ramp?.drawTopUp ?? 0) > 0 && (
+                        <p className="text-xs text-amber-600 mt-1 font-medium">
+                            Includes {formatCurrency(commission.ramp!.drawTopUp)} draw top-up
+                        </p>
+                    )}
                 </CardContent>
             </Card>
 
@@ -71,8 +77,23 @@ export function StatsCards({ commission, pendingPayoutsTotal, pendingPayoutsCoun
                     <div className="flex items-center gap-1 mt-1">
                         <AttainmentIcon className="h-3 w-3 text-muted-foreground" />
                         <p className="text-xs text-muted-foreground">
-                            Quota: {formatCurrency(commission.periodData.quota)}
+                            Effective Quota: {formatCurrency(commission.periodData.quota)}
                         </p>
+                    </div>
+                    {/* Ramp/Proration indicators */}
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                        {commission.ramp?.isActive && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-amber-500/10 text-amber-700 border-amber-500/20">
+                                <TrendingUp className="h-2.5 w-2.5 mr-0.5" />
+                                Ramp
+                            </Badge>
+                        )}
+                        {(commission.proration?.factor ?? 1) < 1 && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-blue-500/10 text-blue-700 border-blue-500/20">
+                                <Calendar className="h-2.5 w-2.5 mr-0.5" />
+                                Prorated
+                            </Badge>
+                        )}
                     </div>
                     {/* Progress bar */}
                     <div className="mt-3 h-1.5 bg-muted rounded-full overflow-hidden">

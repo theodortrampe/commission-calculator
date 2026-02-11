@@ -45,6 +45,19 @@ export interface CommissionResult {
         ote: number;
         baseSalary: number;
     };
+    proration?: {
+        activeDays: number;
+        totalDays: number;
+        factor: number;
+    };
+    ramp?: {
+        isActive: boolean;
+        monthIndex: number;
+        originalQuota: number;
+        rampedQuotaPreProration: number;
+        guaranteedDraw: number;
+        drawTopUp: number;
+    };
 }
 
 /**

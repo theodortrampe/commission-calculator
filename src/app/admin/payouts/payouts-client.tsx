@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { format } from "date-fns";
-import { Loader2, Plus, AlertCircle, Download, FileCheck, Send } from "lucide-react";
+import { Loader2, Plus, AlertCircle, Download, FileCheck, Send, TrendingUp, Calendar, CheckCircle2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,7 @@ import {
     publishBulkPayouts,
 } from "./actions";
 import { AdjustmentDialog } from "./adjustment-dialog";
+import { AuditLogSheet } from "./audit-log-sheet";
 
 interface PayoutsClientProps {
     initialData: UserEarningsSummary[];
@@ -52,6 +53,12 @@ export function PayoutsClient({ initialData, currentMonth }: PayoutsClientProps)
         userId: string;
         userName: string;
     }>({ open: false, userId: "", userName: "" });
+
+    // Audit sheet state
+    const [auditSheet, setAuditSheet] = useState<{
+        open: boolean;
+        item: UserEarningsSummary | null;
+    }>({ open: false, item: null });
 
     const refreshData = async () => {
         const newData = await getAllUserEarnings(selectedMonth);
@@ -218,6 +225,8 @@ export function PayoutsClient({ initialData, currentMonth }: PayoutsClientProps)
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Sales Rep</TableHead>
+                                <TableHead className="text-center">Type</TableHead>
+                                <TableHead className="text-right">Draw</TableHead>
                                 <TableHead className="text-right">Var. Bonus</TableHead>
                                 <TableHead className="text-right">Quota</TableHead>
                                 <TableHead className="text-right">Revenue</TableHead>
@@ -232,7 +241,7 @@ export function PayoutsClient({ initialData, currentMonth }: PayoutsClientProps)
                         <TableBody>
                             {data.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={10} className="text-center py-12 text-muted-foreground">
+                                    <TableCell colSpan={12} className="text-center py-12 text-muted-foreground">
                                         No sales reps found. Run the seed script to create test data.
                                     </TableCell>
                                 </TableRow>
@@ -251,9 +260,46 @@ export function PayoutsClient({ initialData, currentMonth }: PayoutsClientProps)
                                     const adjustedEarnings = earnings + item.fixedBonusTotal;
 
 
+                                    const isRampActive = commission?.ramp?.isActive ?? false;
+                                    const isProrated = (commission?.proration?.factor ?? 1) < 1;
+                                    const drawTopUp = commission?.ramp?.drawTopUp ?? 0;
+
                                     return (
-                                        <TableRow key={item.user.id}>
+                                        <TableRow
+                                            key={item.user.id}
+                                            className="cursor-pointer hover:bg-muted/50"
+                                            onClick={() => setAuditSheet({ open: true, item })}
+                                        >
                                             <TableCell className="font-medium">{item.user.name}</TableCell>
+                                            {/* Type Column */}
+                                            <TableCell className="text-center">
+                                                {isRampActive ? (
+                                                    <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-700 border-amber-500/20">
+                                                        <TrendingUp className="h-2.5 w-2.5 mr-0.5" />
+                                                        Ramp
+                                                    </Badge>
+                                                ) : isProrated ? (
+                                                    <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-700 border-blue-500/20">
+                                                        <Calendar className="h-2.5 w-2.5 mr-0.5" />
+                                                        Prorated
+                                                    </Badge>
+                                                ) : (
+                                                    <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-700 border-emerald-500/20">
+                                                        <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />
+                                                        Standard
+                                                    </Badge>
+                                                )}
+                                            </TableCell>
+                                            {/* Draw Column */}
+                                            <TableCell className="text-right font-mono text-sm">
+                                                {drawTopUp > 0 ? (
+                                                    <span className="text-amber-600 font-medium">
+                                                        {formatCurrency(drawTopUp)}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-muted-foreground">—</span>
+                                                )}
+                                            </TableCell>
                                             <TableCell className="text-right font-mono text-muted-foreground">
                                                 {formatCurrency(variableBonus)}
                                             </TableCell>
@@ -440,6 +486,13 @@ export function PayoutsClient({ initialData, currentMonth }: PayoutsClientProps)
                 userName={adjustmentDialog.userName}
                 month={selectedMonth}
                 onSuccess={refreshData}
+            />
+
+            {/* Audit Log Sheet */}
+            <AuditLogSheet
+                item={auditSheet.item}
+                open={auditSheet.open}
+                onOpenChange={(open) => setAuditSheet({ ...auditSheet, open })}
             />
         </div>
     );

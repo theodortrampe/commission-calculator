@@ -80,3 +80,75 @@ One-time migration script to convert PAID status to PUBLISHED.
 - Updated `src/middleware.ts` to import `auth.edge` from local `./auth.edge`.
 - Updated `src/app/api/auth/[...nextauth]/route.ts` to import `auth` from `@/auth`.
 - **Fixed Build Error**: Wrapped `LoginPage` in `src/app/login/page.tsx` with a `Suspense` boundary to handle `useSearchParams` during build.
+
+---
+
+# Debug Cleanup — Feb 10, 2026
+
+## Deleted Files (31 files)
+
+### Debug Output Files (30 files in project root)
+
+| File | Description |
+|------|-------------|
+| `test_debug.txt` | Ramp logic debug output |
+| `test_debug_2.txt` | Ramp logic debug output |
+| `test_debug_accel.txt` | Accelerator debug output |
+| `test_debug_details.txt` | Detailed debug output |
+| `test_debug_final.txt` | Final debug output |
+| `test_debug_fixed.txt` | Debug output after fix |
+| `test_debug_force.txt` | Forced debug output |
+| `test_debug_force_3.txt` | Forced debug output |
+| `test_debug_no_cache.txt` | No-cache debug output |
+| `test_debug_ramp_final.txt` | Final ramp debug output |
+| `test_debug_v2.txt` | Debug output v2 |
+| `test_after_fix.txt` | Post-fix validation output |
+| `test_binary_search.txt` | Binary search debug |
+| `test_data_check.txt` | Data check output |
+| `test_data_check_fixed.txt` | Data check after fix |
+| `test_data_check_fixed_2.txt` | Data check after fix v2 |
+| `test_failure.txt` | Test failure output |
+| `test_failure_2.txt` | Test failure output |
+| `test_failure_3.txt` | Test failure output |
+| `test_failure_4.txt` | Test failure output |
+| `test_failure_msg.txt` | Test failure message |
+| `test_final_check.txt` | Final check output |
+| `test_id_compare.txt` | ID comparison debug |
+| `test_output.txt` | General test output |
+| `test_ramp_active.txt` | Ramp active debug |
+| `test_ramp_logic.txt` | Ramp logic debug |
+| `test_ramp_logic_v2.txt` | Ramp logic debug v2 |
+| `test_ramp_match.txt` | Ramp match debug |
+| `test_sanity.txt` | Sanity check output |
+| `test_setup_check.txt` | Setup check output |
+| `test_stdout_debug.txt` | Stdout debug output |
+| `test_stdout_debug_final.txt` | Stdout debug final |
+| `test_stdout_debug_final_v2.txt` | Stdout debug final v2 |
+| `test_stdout_debug_final_v3.txt` | Stdout debug final v3 |
+| `test_steps_check.txt` | Steps check output |
+| `test_trace_ids.txt` | ID trace debug |
+| `test_versions_debug.txt` | Versions debug output |
+
+**Reason**: All were debug/test output files generated during ramp logic development. Not source code.
+
+### `scripts/test_imports.js`
+One-time script to verify `bcryptjs` and `PrismaClient` can be loaded.
+
+**Reason**: Development debugging script, no longer needed.
+
+---
+
+## Removed Debug Statements
+
+### `src/lib/utils/rampLogic.ts`
+- Removed 2 `process.stdout.write` debug statements (`[RAMP MATCH]`, `[RAMP DEBUG]`)
+- Simplified `rampSteps.find()` callback from multi-line with debug logging to single expression
+
+### `src/lib/utils/calculateCommissions.ts`
+- Removed 7 `process.stdout.write` debug statements (`[DEBUG STDOUT]`)
+- Removed 1 `console.log` for plan version update tracking
+- Total: ~15 lines of debug code removed
+
+### `src/lib/prisma.ts`
+- Removed `try/catch` block with 2 `console.log` statements that logged `@prisma/client` resolution path on startup
+- Total: ~5 lines removed

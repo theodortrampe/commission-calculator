@@ -18,6 +18,7 @@ import {
 import { CompPlanDetail } from "../actions";
 import { VersionsList } from "./versions-list";
 import { VersionEditor } from "./version-editor";
+import { RampConfigurationForm } from "./ramp-configuration-form";
 
 interface PlanDetailsClientProps {
     plan: CompPlanDetail;
@@ -109,6 +110,16 @@ export function PlanDetailsClient({ plan }: PlanDetailsClientProps) {
                 <h2 className="text-xl font-semibold tracking-tight">Version History</h2>
                 <VersionsList plan={plan} />
             </div>
+
+            {/* Ramp Schedule Configuration */}
+            {currentVersion && (
+                <div className="mt-8">
+                    <RampConfigurationForm
+                        versionId={currentVersion.id}
+                        initialSteps={(currentVersion as any).steps ?? []}
+                    />
+                </div>
+            )}
         </div>
     );
 }

@@ -6,6 +6,7 @@ import { RefreshCw } from "lucide-react";
 
 import { MonthPicker } from "@/components/ui/month-picker";
 import { StatsCards } from "@/components/dashboard/stats-cards";
+import { CommissionMathExplainer } from "@/components/dashboard/commission-math-explainer";
 import { OrdersTable } from "@/components/dashboard/orders-table";
 import { Button } from "@/components/ui/button";
 import { DashboardData, getDashboardData } from "./actions";
@@ -95,30 +96,10 @@ export function DashboardClient({
                 <div className="mt-8 p-6 rounded-lg border bg-muted/30">
                     <h3 className="font-semibold mb-6">How Your Commission is Calculated</h3>
 
-                    {/* Compensation Summary */}
+                    {/* Compensation Summary — Effective Quota & Math Explainer */}
                     <div className="mb-6">
                         <h4 className="text-sm font-medium text-muted-foreground mb-3">Your Compensation Plan</h4>
-                        <div className="grid gap-4 md:grid-cols-3 text-sm">
-                            <div className="p-3 rounded-md bg-background border">
-                                <p className="text-muted-foreground text-xs">Monthly Quota</p>
-                                <p className="font-mono font-medium text-lg">
-                                    ${data.commission.periodData.quota.toLocaleString()}
-                                </p>
-                            </div>
-                            <div className="p-3 rounded-md bg-background border">
-                                <p className="text-muted-foreground text-xs">Effective Commission Rate</p>
-                                <p className="font-mono font-medium text-lg">
-                                    {(data.commission.periodData.effectiveRate * 100).toFixed(2)}%
-                                </p>
-                                <p className="text-xs text-muted-foreground mt-1">(OTE - Base) ÷ Quota</p>
-                            </div>
-                            <div className="p-3 rounded-md bg-background border">
-                                <p className="text-muted-foreground text-xs">Plan</p>
-                                <p className="font-medium">
-                                    {data.commission.periodData.planName ?? "Standard"}
-                                </p>
-                            </div>
-                        </div>
+                        <CommissionMathExplainer commission={data.commission} />
                     </div>
 
                     {/* Revenue Summary */}

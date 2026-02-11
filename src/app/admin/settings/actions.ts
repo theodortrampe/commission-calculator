@@ -39,20 +39,31 @@ export interface CompPlanSettings {
 export async function getCompPlanSettings(): Promise<CompPlanSettings | null> {
     const compPlan = await prisma.compPlan.findFirst({
         orderBy: { name: "asc" },
+        include: {
+            versions: {
+                orderBy: { effectiveFrom: "desc" },
+                take: 1,
+            },
+        },
     });
 
     if (!compPlan) {
         return null;
     }
 
+    const latestVersion = compPlan.versions[0];
+    if (!latestVersion) {
+        return null;
+    }
+
     return {
         id: compPlan.id,
         name: compPlan.name,
-        baseRateMultiplier: compPlan.baseRateMultiplier,
-        acceleratorsEnabled: compPlan.acceleratorsEnabled,
-        kickersEnabled: compPlan.kickersEnabled,
-        accelerators: compPlan.accelerators as AcceleratorConfig | null,
-        kickers: compPlan.kickers as KickerConfig | null,
+        baseRateMultiplier: latestVersion.baseRateMultiplier,
+        acceleratorsEnabled: latestVersion.acceleratorsEnabled,
+        kickersEnabled: latestVersion.kickersEnabled,
+        accelerators: latestVersion.accelerators as AcceleratorConfig | null,
+        kickers: latestVersion.kickers as KickerConfig | null,
     };
 }
 
@@ -112,8 +123,18 @@ export async function updateCompPlanSettings(
             })
             .join(", ");
 
-        await prisma.compPlan.update({
-            where: { id: input.id },
+        // Find the latest version for this plan and update it
+        const latestVersion = await prisma.compPlanVersion.findFirst({
+            where: { planId: input.id },
+            orderBy: { effectiveFrom: "desc" },
+        });
+
+        if (!latestVersion) {
+            return { success: false, error: "No version found for this plan" };
+        }
+
+        await prisma.compPlanVersion.update({
+            where: { id: latestVersion.id },
             data: {
                 baseRateMultiplier,
                 acceleratorsEnabled: input.acceleratorsEnabled,

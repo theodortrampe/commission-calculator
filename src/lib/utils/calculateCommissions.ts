@@ -7,6 +7,7 @@ import {
     KickerConfig,
     CommissionResult,
 } from "./commissionLogic";
+import { calculateRampOverride, RampOverrideResult, RampStepConfig } from "./rampLogic";
 
 export type { CommissionResult, CommissionBreakdown, AcceleratorConfig, AcceleratorTier, KickerConfig, KickerTier } from "./commissionLogic";
 export { calculateCommissionWithAccelerators, calculateKickers } from "./commissionLogic";
@@ -38,28 +39,34 @@ export async function calculateCommissions(
     const { userId, startDate, endDate, revenueAdjustment = 0 } = input;
 
     // Get the month from startDate (assuming calculations are monthly)
-    const periodMonth = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+    // Use UTC methods to ensure we get the correct month regardless of server timezone
+    const periodMonth = new Date(Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), 1));
 
     // Fetch UserPeriodData for the relevant month
-    // Use a range to be safe against timezone differences (UTC vs Local)
-    // The previous implementation was adding/subtracting time based on local timezone which caused issues.
     // We want the full UTC day range.
 
     // Create new dates to avoid mutating the original
-    const startOfMonth = new Date(Date.UTC(periodMonth.getFullYear(), periodMonth.getMonth(), 1));
-    const startOfNextMonth = new Date(Date.UTC(periodMonth.getFullYear(), periodMonth.getMonth() + 1, 1));
+    const startOfMonth = new Date(Date.UTC(periodMonth.getUTCFullYear(), periodMonth.getUTCMonth(), 1));
+    const startOfNextMonth = new Date(Date.UTC(periodMonth.getUTCFullYear(), periodMonth.getUTCMonth() + 1, 1));
+
+    // Exact calculation dates (no buffer)
+    const calculationStart = new Date(startOfMonth);
+    const calculationEnd = new Date(startOfNextMonth);
 
     // Allow for a buffer to catch entries that might be slightly off due to timezone conversion during seed
     // e.g. 2026-01-31T23:00:00.000Z instead of 2026-02-01T00:00:00.000Z
-    startOfMonth.setHours(startOfMonth.getHours() - 12);
-    startOfNextMonth.setHours(startOfNextMonth.getHours() + 12);
+    // We only use these for the DB query to be loose
+    const queryStart = new Date(startOfMonth);
+    const queryEnd = new Date(startOfNextMonth);
+    queryStart.setHours(queryStart.getHours() - 12);
+    queryEnd.setHours(queryEnd.getHours() + 12);
 
     const periodData = await prisma.userPeriodData.findFirst({
         where: {
             userId,
             month: {
-                gte: startOfMonth,
-                lt: startOfNextMonth,
+                gte: queryStart,
+                lt: queryEnd,
             },
         },
         include: {
@@ -82,10 +89,10 @@ export async function calculateCommissions(
     const activeAssignment = await prisma.planAssignment.findFirst({
         where: {
             userId,
-            startDate: { lte: periodMonth },
+            startDate: { lte: queryEnd },
             OR: [
                 { endDate: null },
-                { endDate: { gte: periodMonth } }
+                { endDate: { gte: queryStart } }
             ]
         },
         include: {
@@ -104,12 +111,12 @@ export async function calculateCommissions(
 
     if (activeAssignment) {
         // Find the version effective for this period
-        const effectiveVersion = activeAssignment.plan.versions.find(v => v.effectiveFrom <= periodMonth);
+        // Check if version is effective on or before calculation start
+        const effectiveVersion = activeAssignment.plan.versions.find(v => v.effectiveFrom <= calculationStart);
 
         if (effectiveVersion) {
             // If the periodData points to a different version (or none), update it
             if (periodData.planVersionId !== effectiveVersion.id) {
-                console.log(`Updating plan version for user ${userId} period ${periodMonth.toISOString()} to ${effectiveVersion.id}`);
                 await prisma.userPeriodData.update({
                     where: { id: periodData.id },
                     data: { planVersionId: effectiveVersion.id }
@@ -123,6 +130,86 @@ export async function calculateCommissions(
             }
         }
     }
+
+    // --- Proration Logic ---
+    // 1. Determine the full duration of the requested period in days
+    const oneDayMs = 1000 * 60 * 60 * 24;
+    const totalDaysInPeriod = Math.round((calculationEnd.getTime() - calculationStart.getTime()) / oneDayMs);
+
+
+    // 2. Determine active days based on assignment intersection
+    let activeDays = totalDaysInPeriod;
+
+
+    if (activeAssignment) {
+        // Intersect assignment dates with period dates
+
+        // assignment start date might be before the period
+        const assignmentStart = activeAssignment.startDate > calculationStart ? activeAssignment.startDate : calculationStart;
+
+        // assignment end date might be null (forever) or after the period
+        const assignmentEnd = activeAssignment.endDate && activeAssignment.endDate < calculationEnd
+            ? activeAssignment.endDate
+            : calculationEnd;
+
+        // Calculate difference in days
+        // We use Math.max(0, ...) to handle cases where assignment might technically be outside range 
+        const diffMs = assignmentEnd.getTime() - assignmentStart.getTime();
+        activeDays = Math.round(diffMs / oneDayMs);
+
+        // Ensure we don't exceed total days (floating point safety)
+        activeDays = Math.min(activeDays, totalDaysInPeriod);
+        activeDays = Math.max(0, activeDays);
+    }
+
+    // 3. Calculate Proration Factor
+    const prorationFactor = activeDays / totalDaysInPeriod;
+
+    // --- Ramp Schedule Logic ---
+    let effectiveQuota = periodData.quota;
+    let effectiveOTE = periodData.ote;
+    let rampOverride: RampOverrideResult | null = null;
+    let baseRateMultiplierOverride = planVersion?.baseRateMultiplier ?? 1.0;
+    let acceleratorsEnabledOverride = planVersion?.acceleratorsEnabled ?? true;
+    let kickersEnabledOverride = planVersion?.kickersEnabled ?? false;
+    let guaranteedDrawAmount = 0;
+
+    // Check ramp only if we have an assignment start date
+    if (activeAssignment && activeAssignment.startDate && planVersion) {
+        // Fetch steps explicitly to avoid include issues or type mismatches
+        const steps = await prisma.rampStep.findMany({
+            where: { planVersionId: planVersion.id }
+        });
+
+        const rampStepsConfig = steps.map(s => ({
+            ...s,
+        })) as unknown as RampStepConfig[];
+
+        rampOverride = calculateRampOverride(activeAssignment.startDate, calculationStart, rampStepsConfig);
+
+        if (rampOverride.isRampActive) {
+            // Apply Ramp Multiplier to Quota
+            effectiveQuota = periodData.quota * rampOverride.effectiveQuotaMultiplier;
+            effectiveOTE = periodData.ote * rampOverride.effectiveQuotaMultiplier;
+
+            // Disable Accelerators and Kickers during ramp
+            if (rampOverride.disableAccelerators) {
+                acceleratorsEnabledOverride = false;
+            }
+            if (rampOverride.disableKickers) {
+                kickersEnabledOverride = false;
+            }
+
+            // Set Guaranteed Draw (Pre-proration)
+            guaranteedDrawAmount = rampOverride.guaranteedDraw;
+        }
+    }
+
+    // 4. Apply Proration
+    // Quota and OTE are prorated. Effective Rate remains constant (as it's a ratio).
+    const proratedQuota = effectiveQuota * prorationFactor;
+    const proratedOTE = effectiveOTE * prorationFactor;
+    const proratedDraw = guaranteedDrawAmount * prorationFactor;
 
     // Fetch all APPROVED orders within the date range
     const orders = await prisma.order.findMany({
@@ -140,14 +227,14 @@ export async function calculateCommissions(
     const orderRevenue = orders.reduce((sum, order) => sum + order.convertedUsd, 0);
     const totalRevenue = orderRevenue + revenueAdjustment;
 
-    // Calculate attainment percentage
-    const attainmentPercent = (totalRevenue / periodData.quota) * 100;
+    // Calculate attainment percentage against PRORATED quota
+    const attainmentPercent = (totalRevenue / proratedQuota) * 100;
 
     // Get plan config from VERSION
     // planVersion is already set above
-    const baseRateMultiplier = planVersion?.baseRateMultiplier ?? 1.0;
-    const acceleratorsEnabled = planVersion?.acceleratorsEnabled ?? true;
-    const kickersEnabled = planVersion?.kickersEnabled ?? false;
+    const baseRateMultiplier = baseRateMultiplierOverride; // Use override
+    const acceleratorsEnabled = acceleratorsEnabledOverride; // Use override
+    const kickersEnabled = kickersEnabledOverride; // Use override
 
     // Calculate base + accelerator commission
     const acceleratorConfig = acceleratorsEnabled
@@ -156,23 +243,44 @@ export async function calculateCommissions(
 
     const { commissionEarned: baseCommissionEarned, breakdown } = calculateCommissionWithAccelerators(
         totalRevenue,
-        periodData.quota,
+        proratedQuota, // Use Prorated Quota
         periodData.effectiveRate,
         acceleratorConfig,
         baseRateMultiplier
     );
 
-    // Calculate kickers
+    // Calculate kickers (using Prorated OTE)
     const kickerConfig = planVersion?.kickers as KickerConfig | null;
     const { kickerAmount, kickersApplied } = calculateKickers(
         attainmentPercent,
-        periodData.ote,
+        proratedOTE, // Use Prorated OTE for kicker value calculation
         kickerConfig,
         kickersEnabled
     );
 
     // Total commission includes base + accelerator + kickers
-    const totalCommission = baseCommissionEarned + kickerAmount;
+    let totalCommission = baseCommissionEarned + kickerAmount;
+    let drawTopUp = 0;
+
+    // Apply Draw Logic
+    if (proratedDraw > 0 && proratedDraw > totalCommission) {
+        drawTopUp = proratedDraw - totalCommission;
+        totalCommission = proratedDraw;
+    }
+
+    // Construct Ramp Result if active
+    let ramp: CommissionResult['ramp'];
+
+    if (rampOverride?.isRampActive) {
+        ramp = {
+            isActive: true,
+            monthIndex: rampOverride.monthIndex ?? 0,
+            originalQuota: periodData.quota,
+            rampedQuotaPreProration: effectiveQuota,
+            guaranteedDraw: proratedDraw,
+            drawTopUp
+        };
+    }
 
     // Update breakdown with kicker info
     breakdown.kickerAmount = kickerAmount;
@@ -184,11 +292,17 @@ export async function calculateCommissions(
         commissionEarned: totalCommission,
         breakdown,
         periodData: {
-            quota: periodData.quota,
+            quota: proratedQuota, // Return the actually used (prorated) quota
             effectiveRate: periodData.effectiveRate,
             planName: planVersion?.plan.name ?? null,
-            ote: periodData.ote,
-            baseSalary: periodData.baseSalary,
+            ote: proratedOTE, // Return the actually used (prorated) OTE
+            baseSalary: periodData.baseSalary, // Base typically passed through, effectively prorated if we calculated payout
         },
+        proration: {
+            activeDays,
+            totalDays: totalDaysInPeriod,
+            factor: prorationFactor
+        },
+        ramp
     };
 }

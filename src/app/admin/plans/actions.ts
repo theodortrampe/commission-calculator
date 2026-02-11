@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { PayoutFreq } from "@prisma/client";
+import { DrawType, PayoutFreq } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 export type CompPlanSummary = {
@@ -64,6 +64,13 @@ export async function getCompPlan(id: string) {
                 orderBy: {
                     effectiveFrom: "desc",
                 },
+                include: {
+                    steps: {
+                        orderBy: {
+                            monthIndex: "asc",
+                        },
+                    },
+                },
             },
             _count: {
                 select: {
@@ -125,4 +132,41 @@ export async function updateCompPlanVersion(versionId: string, data: {
     });
 
     revalidatePath("/admin/plans/[id]", "page");
+}
+
+export async function saveRampSteps(versionId: string, steps: {
+    monthIndex: number;
+    quotaPercentage: number;
+    guaranteedDraw: number | null;
+    drawType: "NON_RECOVERABLE" | "RECOVERABLE";
+    disableAccelerators: boolean;
+    disableKickers: boolean;
+}[]): Promise<{ success: boolean; error?: string }> {
+    try {
+        // Delete existing steps for this version and create new ones atomically
+        await prisma.$transaction([
+            prisma.rampStep.deleteMany({
+                where: { planVersionId: versionId },
+            }),
+            ...steps.map(step =>
+                prisma.rampStep.create({
+                    data: {
+                        planVersionId: versionId,
+                        monthIndex: step.monthIndex,
+                        quotaPercentage: step.quotaPercentage,
+                        guaranteedDraw: step.guaranteedDraw,
+                        drawType: step.drawType as DrawType,
+                        disableAccelerators: step.disableAccelerators,
+                        disableKickers: step.disableKickers,
+                    },
+                })
+            ),
+        ]);
+
+        revalidatePath("/admin/plans/[id]", "page");
+        return { success: true };
+    } catch (error) {
+        console.error("Failed to save ramp steps:", error);
+        return { success: false, error: "Failed to save ramp steps" };
+    }
 }
