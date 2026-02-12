@@ -24,7 +24,10 @@
 ## Priority 3: Comp Plan Management ⚙️ (Completed)
 - ✅ **Comp Plan Management**: Create/edit plans, versions, and logic.
 - ✅ **Assignments**: Assign plans to users/roles.
+- ✅ **Comp Plan Management**: Create/edit plans, versions, and logic.
+- ✅ **Assignments**: Assign plans to users/roles.
 - ✅ **Admin Navigation**: Unified navigation.
+- ✅ **Settings Refactor**: Migrated legacy settings to use Plan Versioning logic.
 
 ## Priority 4: Audit & Compliance 🛡️
 **Goal**: Ensure data integrity and accountability.

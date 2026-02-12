@@ -176,6 +176,7 @@ model CompPlanVersion {
 
   // Logic fields (moved from CompPlan)
   baseRateMultiplier Float @default(1.0)
+  quota               Float   @default(0.0)
   acceleratorsEnabled Boolean @default(true)
   kickersEnabled      Boolean @default(false)
   accelerators Json?

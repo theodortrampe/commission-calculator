@@ -18,7 +18,8 @@ interface SettingsClientProps {
 }
 
 export function SettingsClient({ settings }: SettingsClientProps) {
-    const [baseRateMultiplier, setBaseRateMultiplier] = useState(settings.baseRateMultiplier);
+    const [baseRateMultiplier, setBaseRateMultiplier] = useState(settings.baseRateMultiplier ?? 1.0);
+    const [quota, setQuota] = useState(settings.quota ?? 0);
     const [acceleratorsEnabled, setAcceleratorsEnabled] = useState(settings.acceleratorsEnabled);
     const [kickersEnabled, setKickersEnabled] = useState(settings.kickersEnabled);
     const [acceleratorTiers, setAcceleratorTiers] = useState<AcceleratorTier[]>(
@@ -96,6 +97,7 @@ export function SettingsClient({ settings }: SettingsClientProps) {
             const result = await updateCompPlanSettings({
                 id: settings.id,
                 baseRateMultiplier,
+                quota,
                 acceleratorsEnabled,
                 kickersEnabled,
                 accelerators: { tiers: acceleratorTiers },
@@ -121,9 +123,9 @@ export function SettingsClient({ settings }: SettingsClientProps) {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="flex items-center gap-4">
-                        <div className="flex-1 max-w-xs">
-                            <Label htmlFor="baseRate">Rate Multiplier</Label>
+                    <div className="grid gap-6 sm:grid-cols-2">
+                        <div className="space-y-2">
+                            <Label htmlFor="baseRate">Base Rate Multiplier</Label>
                             <Input
                                 id="baseRate"
                                 type="number"
@@ -133,11 +135,26 @@ export function SettingsClient({ settings }: SettingsClientProps) {
                                 onChange={(e) => setBaseRateMultiplier(parseFloat(e.target.value) || 1)}
                                 className="font-mono"
                             />
+                            <p className="text-sm text-muted-foreground">
+                                {baseRateMultiplier === 1 && "Normal rate"}
+                                {baseRateMultiplier > 1 && `${((baseRateMultiplier - 1) * 100).toFixed(0)}% bonus`}
+                                {baseRateMultiplier < 1 && `${((1 - baseRateMultiplier) * 100).toFixed(0)}% reduced`}
+                            </p>
                         </div>
-                        <div className="text-sm text-muted-foreground pt-6">
-                            {baseRateMultiplier === 1 && "Normal rate"}
-                            {baseRateMultiplier > 1 && `${((baseRateMultiplier - 1) * 100).toFixed(0)}% bonus`}
-                            {baseRateMultiplier < 1 && `${((1 - baseRateMultiplier) * 100).toFixed(0)}% reduced`}
+                        <div className="space-y-2">
+                            <Label htmlFor="quota">Monthly Quota ($)</Label>
+                            <Input
+                                id="quota"
+                                type="number"
+                                min="0"
+                                step="1000"
+                                value={quota}
+                                onChange={(e) => setQuota(parseFloat(e.target.value) || 0)}
+                                className="font-mono"
+                            />
+                            <p className="text-sm text-muted-foreground">
+                                Standard monthly quota
+                            </p>
                         </div>
                     </div>
                 </CardContent>

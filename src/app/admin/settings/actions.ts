@@ -29,6 +29,7 @@ export interface CompPlanSettings {
     baseRateMultiplier: number;
     acceleratorsEnabled: boolean;
     kickersEnabled: boolean;
+    quota: number;
     accelerators: AcceleratorConfig | null;
     kickers: KickerConfig | null;
 }
@@ -62,6 +63,7 @@ export async function getCompPlanSettings(): Promise<CompPlanSettings | null> {
         baseRateMultiplier: latestVersion.baseRateMultiplier,
         acceleratorsEnabled: latestVersion.acceleratorsEnabled,
         kickersEnabled: latestVersion.kickersEnabled,
+        quota: latestVersion.quota,
         accelerators: latestVersion.accelerators as AcceleratorConfig | null,
         kickers: latestVersion.kickers as KickerConfig | null,
     };
@@ -72,6 +74,7 @@ export interface UpdateCompPlanInput {
     baseRateMultiplier: number;
     acceleratorsEnabled: boolean;
     kickersEnabled: boolean;
+    quota: number;
     accelerators: AcceleratorConfig;
     kickers: KickerConfig;
 }
@@ -87,6 +90,11 @@ export async function updateCompPlanSettings(
         const baseRateMultiplier = (!input.baseRateMultiplier || input.baseRateMultiplier <= 0 || isNaN(input.baseRateMultiplier))
             ? 1.0
             : input.baseRateMultiplier;
+
+        // Validate quota
+        const quota = (!input.quota || input.quota < 0 || isNaN(input.quota))
+            ? 0
+            : input.quota;
 
         // Validate accelerator tiers if present
         const accelTiers = input.accelerators?.tiers ?? [];
@@ -139,6 +147,7 @@ export async function updateCompPlanSettings(
                 baseRateMultiplier,
                 acceleratorsEnabled: input.acceleratorsEnabled,
                 kickersEnabled: input.kickersEnabled,
+                quota,
                 accelerators: {
                     tiers: accelTiers,
                     description: acceleratorDescription,

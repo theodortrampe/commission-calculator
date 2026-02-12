@@ -116,7 +116,7 @@ export function PlanDetailsClient({ plan }: PlanDetailsClientProps) {
                 <div className="mt-8">
                     <RampConfigurationForm
                         versionId={currentVersion.id}
-                        initialSteps={(currentVersion as any).steps ?? []}
+                        initialSteps={currentVersion.steps ?? []}
                     />
                 </div>
             )}

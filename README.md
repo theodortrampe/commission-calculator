@@ -38,7 +38,10 @@ A Next.js application for managing sales rep commission calculations, payouts, a
 - Automatically determines which plan version applies to a given period
 
 #### Admin Settings (`/admin/settings`)
-- (Legacy) Global settings have been moved to Plan Assignments.
+#### Admin Settings (`/admin/settings`)
+- Global configuration for default plan logic.
+- **Quota & Rates**: Set default base rate multiplier and monthly quota.
+- **Toggle Logic**: Enable/disable accelerators or kickers globally for default assignments.
 
 ### Data Ingestion API (`/api/ingest/bigquery`)
 - RESTful API for ingesting sales data

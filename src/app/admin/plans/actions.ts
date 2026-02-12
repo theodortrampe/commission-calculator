@@ -56,7 +56,7 @@ export async function getCompPlans(): Promise<CompPlanSummary[]> {
 }
 
 
-export async function getCompPlan(id: string) {
+export async function getCompPlan(id: string): Promise<CompPlanDetail | null> {
     const plan = await prisma.compPlan.findUnique({
         where: { id },
         include: {
@@ -82,7 +82,20 @@ export async function getCompPlan(id: string) {
     return plan;
 }
 
-export type CompPlanDetail = Awaited<ReturnType<typeof getCompPlan>>;
+import { CompPlan, CompPlanVersion, RampStep } from "@prisma/client";
+
+export type CompPlanVersionWithDetails = CompPlanVersion & {
+    steps: RampStep[];
+};
+
+export type CompPlanDetail = CompPlan & {
+    versions: CompPlanVersionWithDetails[];
+    _count: {
+        assignments: number;
+    };
+};
+
+// export type CompPlanDetail = Awaited<ReturnType<typeof getCompPlan>>;
 
 export async function createCompPlan(data: {
     name: string;
