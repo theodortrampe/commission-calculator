@@ -152,3 +152,46 @@ One-time script to verify `bcryptjs` and `PrismaClient` can be loaded.
 ### `src/lib/prisma.ts`
 - Removed `try/catch` block with 2 `console.log` statements that logged `@prisma/client` resolution path on startup
 - Total: ~5 lines removed
+
+---
+
+# Cleanup — Feb 12, 2026
+
+## Deleted Files (10 files)
+
+### Prisma Debug Scripts
+| File | Description |
+|------|-------------|
+| `prisma/test-connect.ts` | One-off Prisma connection test (adapter-based) |
+| `prisma/test-connection.ts` | One-off Prisma connection test (dotenv-based) |
+
+**Reason**: Debug scripts used during initial DB setup. Not referenced by any code or npm script.
+
+### SQL Password Files
+| File | Description |
+|------|-------------|
+| `prisma/update_passwords.sql` | Manual SQL to set user password hashes |
+| `prisma/update_password_final.sql` | Updated version of above with verified hashes |
+
+**Reason**: One-time manual fix scripts. Seed script now handles passwords correctly.
+
+### Development Scripts
+| File | Description |
+|------|-------------|
+| `scripts/reset-admin.js` | Reset admin password via bcryptjs + Prisma |
+
+**Reason**: Debug utility superseded by seed script. Not referenced in `package.json`.
+
+### Default Next.js Assets (5 files)
+| File |
+|------|
+| `public/file.svg` |
+| `public/globe.svg` |
+| `public/next.svg` |
+| `public/vercel.svg` |
+| `public/window.svg` |
+
+**Reason**: Default boilerplate SVGs from `create-next-app`. Not referenced by any component.
+
+## Removed Directories
+- `scripts/` — Empty after deleting `reset-admin.js`

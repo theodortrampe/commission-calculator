@@ -223,7 +223,7 @@ export function CommissionMathExplainer({ commission }: CommissionMathExplainerP
                         <div className="p-3 rounded-md bg-amber-500/10 border border-amber-500/20 text-sm">
                             <p className="text-amber-700 font-medium text-xs">Guaranteed Draw Active</p>
                             <p className="text-sm mt-1">
-                                Your guaranteed minimum is {formatCurrency(commission.ramp?.guaranteedDraw ?? 0)}.
+                                Your guaranteed minimum is {formatCurrency(commission.ramp?.guaranteedDrawAmount ?? 0)}.
                                 Since your earned commission ({formatCurrency(earnedWithoutDraw)}) is below this,
                                 a {formatCurrency(drawTopUp)} draw top-up has been applied.
                             </p>

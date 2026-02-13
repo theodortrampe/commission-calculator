@@ -1,12 +1,16 @@
 # Project Roadmap & Planning
 
-## Current Status (Feb 7, 2026)
+## Current Status (Feb 12, 2026)
 - ✅ **Authentication**: Role-based access (Admin/Rep) via Auth.js (Google OAuth + credentials).
 - ✅ **Core Calculation**: Commission logic with accelerators and kickers.
 - ✅ **Data Import**: Consolidated CSV/Excel & BigQuery ingestion.
 - ✅ **Payouts**: Admin payout management (draft/publish) and rep dashboard.
 - ✅ **Order Management**: View orders, manual entry/edit.
 - ✅ **Rep Self-Service**: Payout history, adjustments view.
+- ✅ **Comp Plan Management**: Create/edit plans with configurable accelerators, kickers, and base rates.
+- ✅ **Assignments**: Assign plans to users/roles with date-based proration.
+- ✅ **Ramp Schedules**: Per-month quota scaling, percentage-based guaranteed draws, configurable accelerator/kicker overrides per step.
+- ✅ **UI Improvements**: Tabbed plan config dialog, ramp schedule form, read-only detail views for accelerators/kickers/ramp.
 
 ## Priority 1: Reporting & Analytics 📊
 **Goal**: Provide deeper insights into performance trends.
@@ -21,22 +25,14 @@
 - [ ] **Invite System**: Send email invites to new reps.
 - [ ] **Deactivation**: Handle rep departures (offboarding).
 
-## Priority 3: Comp Plan Management ⚙️ (Completed)
-- ✅ **Comp Plan Management**: Create/edit plans, versions, and logic.
-- ✅ **Assignments**: Assign plans to users/roles.
-- ✅ **Comp Plan Management**: Create/edit plans, versions, and logic.
-- ✅ **Assignments**: Assign plans to users/roles.
-- ✅ **Admin Navigation**: Unified navigation.
-- ✅ **Settings Refactor**: Migrated legacy settings to use Plan Versioning logic.
-
-## Priority 4: Audit & Compliance 🛡️
+## Priority 3: Audit & Compliance 🛡️
 **Goal**: Ensure data integrity and accountability.
 - [ ] **Adjustment Approval Workflow**: Require manager approval for manual adjustments.
 - [ ] **Payout Change History**: Track changes to finalized payouts.
 - [ ] **Audit Logs**: Log who changed what (adjustments, plan changes, user roles).
 - [ ] **Manager Sign-off**: Formal acknowledgement of payouts.
 
-## Priority 5: Infrastructure & Security 🔒
+## Priority 4: Infrastructure & Security 🔒
 **Goal**: Scalability, stability, and security.
 - [ ] **API Key Protection**: Secure BigQuery ingestion endpoints.
 - [ ] **Rate Limiting**: Protect API against abuse.
@@ -51,7 +47,7 @@
     - [ ] CI/CD pipeline (GitHub Actions).
     - [ ] Database migrations strategy for production.
 
-## Priority 6: Notification System 🔔
+## Priority 5: Notification System 🔔
 **Goal**: Keep users informed of important events.
 - [ ] **Email Integration**: Connect `resend` or `sendgrid`.
 - [ ] **Event Triggers**:

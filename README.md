@@ -28,20 +28,22 @@ A Next.js application for managing sales rep commission calculations, payouts, a
 
 #### Plans Management (`/admin/plans`)
 - Create and manage Compensation Plans (e.g., "AE 2024", "SDR Q1")
-- Version control for plans (Draft, Active, Scheduled)
-- **Configure Logic**: Define accelerators, kickers, and base rates per version
-- **Ramp Schedule Configuration**: Define per-month quota percentages, guaranteed draws (recoverable/non-recoverable), and override accelerator/kicker settings during ramp periods
+- **Configure Logic**: Define accelerators, kickers, and base rates per plan
+- **Ramp Schedule Configuration**: Define per-month quota percentages, guaranteed draws as a percentage of variable bonus (recoverable/non-recoverable), and override accelerator/kicker settings during ramp periods
 
 #### Assignments (`/admin/assignments`)
 - Assign plans to specific Users or Roles (e.g., "All Managers")
-- Date-based assignments (Start/End dates)
-- Automatically determines which plan version applies to a given period
+- Date-based assignments (Start/End dates) with automatic proration
 
-#### Admin Settings (`/admin/settings`)
 #### Admin Settings (`/admin/settings`)
 - Global configuration for default plan logic.
 - **Quota & Rates**: Set default base rate multiplier and monthly quota.
 - **Toggle Logic**: Enable/disable accelerators or kickers globally for default assignments.
+
+### Multi-Tenant Architecture (B2B SaaS Ready)
+- **Hidden Tenant Pattern**: All data (Users, Plans, Orders, Payouts) is scoped by `organizationId`.
+- **Organization Management**: Seed script creates a default organization (`default-org-001`) to support current deployments.
+- **Tenant Shim**: Centralized tenant resolution in `src/lib/constants.ts`.
 
 ### Data Ingestion API (`/api/ingest/bigquery`)
 - RESTful API for ingesting sales data
@@ -117,10 +119,10 @@ When testing in a staging or preview environment, ensure you run the seeding com
 
 ### Default Login Credentials
 
-After seeding, you can log in with:
+After seeding, all data is associated with the **Demo Company** organization.
 
 - **Admin:** `admin@company.com` / `admin123`
-- **Sales Rep:** `john.doe@company.com` / `admin123`
+- **Sales Reps:** `jane.smith@company.com`, `john.doe@company.com` / `rep123`
 
 
 
@@ -132,7 +134,7 @@ The system calculates commissions using:
 2. **Base Commission** = Revenue up to Quota × Effective Rate
 3. **Accelerators** = Revenue over Quota × Multiplier × Effective Rate
 4. **Kickers** = Fixed % of OTE at attainment milestones
-5. **Ramp Override** = During ramp period, quota is scaled by ramp %, guaranteed draws apply, and accelerators/kickers can be disabled per step
+5. **Ramp Override** = During ramp period, quota is scaled by ramp %, guaranteed draw is calculated as a percentage of full variable bonus (OTE - Base Salary), and accelerators/kickers can be disabled per step
 
 ### Accelerator Tiers (configurable)
 | Attainment | Multiplier |

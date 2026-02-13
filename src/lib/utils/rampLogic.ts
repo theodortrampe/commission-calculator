@@ -2,7 +2,7 @@
 export interface RampStepConfig {
     monthIndex: number;
     quotaPercentage: number;
-    guaranteedDraw: number | string | null; // Prisma Decimal comes as number or string at runtime
+    guaranteedDrawPercent: number | null; // % of variable bonus
     drawType: "NON_RECOVERABLE" | "RECOVERABLE";
     disableAccelerators?: boolean;
     disableKickers?: boolean;
@@ -11,7 +11,7 @@ export interface RampStepConfig {
 export interface RampOverrideResult {
     isRampActive: boolean;
     effectiveQuotaMultiplier: number; // 1.0 if no ramp, otherwise rampStep.quotaPercentage
-    guaranteedDraw: number;
+    guaranteedDrawPercent: number; // % of variable bonus
     drawType: "NON_RECOVERABLE" | "RECOVERABLE" | null;
     monthIndex: number | null;
     disableAccelerators: boolean;
@@ -34,7 +34,7 @@ export function calculateRampOverride(
         return {
             isRampActive: false,
             effectiveQuotaMultiplier: 1.0,
-            guaranteedDraw: 0,
+            guaranteedDrawPercent: 0,
             drawType: null,
             monthIndex: null,
             disableAccelerators: false,
@@ -63,7 +63,7 @@ export function calculateRampOverride(
         return {
             isRampActive: false,
             effectiveQuotaMultiplier: 1.0,
-            guaranteedDraw: 0,
+            guaranteedDrawPercent: 0,
             drawType: null,
             monthIndex: null,
             disableAccelerators: false,
@@ -78,7 +78,7 @@ export function calculateRampOverride(
         return {
             isRampActive: true,
             effectiveQuotaMultiplier: step.quotaPercentage,
-            guaranteedDraw: step.guaranteedDraw ? Number(step.guaranteedDraw) : 0,
+            guaranteedDrawPercent: step.guaranteedDrawPercent ? Number(step.guaranteedDrawPercent) : 0,
             drawType: step.drawType,
             monthIndex: tenureMonth,
             disableAccelerators: step.disableAccelerators ?? true,
@@ -89,7 +89,7 @@ export function calculateRampOverride(
     return {
         isRampActive: false,
         effectiveQuotaMultiplier: 1.0,
-        guaranteedDraw: 0,
+        guaranteedDrawPercent: 0,
         drawType: null,
         monthIndex: null,
         disableAccelerators: false,

@@ -1,33 +1,51 @@
 
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Clock, Copy, Plus } from "lucide-react";
+import { ArrowLeft, Zap, TrendingUp, Award } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
 
 import { CompPlanDetail } from "../actions";
-import { VersionsList } from "./versions-list";
 import { VersionEditor } from "./version-editor";
-import { RampConfigurationForm } from "./ramp-configuration-form";
 
 interface PlanDetailsClientProps {
     plan: CompPlanDetail;
 }
 
+// Parse accelerator tiers from JSON
+function getAcceleratorTiers(accelerators: any): { minAttainment: number; maxAttainment: number | null; multiplier: number }[] {
+    if (!accelerators?.tiers || !Array.isArray(accelerators.tiers)) return [];
+    return accelerators.tiers;
+}
+
+// Parse kicker bonuses from JSON
+function getKickerBonuses(kickers: any): { attainmentThreshold: number; bonusPercent: number }[] {
+    if (!kickers?.bonuses || !Array.isArray(kickers.bonuses)) return [];
+    return kickers.bonuses;
+}
+
 export function PlanDetailsClient({ plan }: PlanDetailsClientProps) {
     if (!plan) return <div>Plan not found</div>;
 
-    const currentVersion = plan.versions[0]; // Assuming sorted by effectiveDate desc
+    const acceleratorTiers = getAcceleratorTiers(plan.accelerators);
+    const kickerBonuses = getKickerBonuses(plan.kickers);
+    const rampSteps = plan.steps ?? [];
 
     return (
         <div className="container mx-auto py-10 px-4">
@@ -47,29 +65,15 @@ export function PlanDetailsClient({ plan }: PlanDetailsClientProps) {
                         <Badge variant="secondary" className="capitalize">
                             {plan.frequency.toLowerCase()}
                         </Badge>
-                        <span className="text-muted-foreground text-sm">
-                            Created {new Date().toLocaleDateString()}
-                        </span>
                     </div>
                     <p className="text-muted-foreground max-w-2xl">
                         {plan.description || "No description provided."}
                     </p>
                 </div>
-                <div className="flex gap-2">
-                    <Button variant="outline">
-                        <Copy className="mr-2 h-4 w-4" />
-                        Duplicate Plan
-                    </Button>
-                    {currentVersion && currentVersion.isDraft && (
-                        <VersionEditor version={currentVersion} />
-                    )}
-                    <Button>
-                        <Plus className="mr-2 h-4 w-4" />
-                        New Version
-                    </Button>
-                </div>
+                <VersionEditor plan={plan} initialSteps={rampSteps} />
             </div>
 
+            {/* Stats Cards */}
             <div className="grid gap-6 md:grid-cols-3 mb-8">
                 <Card>
                     <CardHeader className="pb-2">
@@ -84,41 +88,160 @@ export function PlanDetailsClient({ plan }: PlanDetailsClientProps) {
                 </Card>
                 <Card>
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium">Current Version</CardTitle>
+                        <CardTitle className="text-sm font-medium">Base Multiplier</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">v{currentVersion?.versionNumber || "-"}</div>
+                        <div className="text-2xl font-bold">{plan.baseRateMultiplier}x</div>
                         <p className="text-xs text-muted-foreground">
-                            Effective since {currentVersion ? new Date(currentVersion.effectiveFrom).toLocaleDateString() : "N/A"}
+                            Rate multiplier applied to commissions
                         </p>
                     </CardContent>
                 </Card>
                 <Card>
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium">Total Versions</CardTitle>
+                        <CardTitle className="text-sm font-medium">Features</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{plan.versions.length}</div>
-                        <p className="text-xs text-muted-foreground">
-                            Historical versions
-                        </p>
+                        <div className="flex gap-2">
+                            <Badge variant={plan.acceleratorsEnabled ? "default" : "outline"}>
+                                Accelerators {plan.acceleratorsEnabled ? "On" : "Off"}
+                            </Badge>
+                            <Badge variant={plan.kickersEnabled ? "default" : "outline"}>
+                                Kickers {plan.kickersEnabled ? "On" : "Off"}
+                            </Badge>
+                        </div>
                     </CardContent>
                 </Card>
             </div>
 
-            <div className="space-y-4">
-                <h2 className="text-xl font-semibold tracking-tight">Version History</h2>
-                <VersionsList plan={plan} />
+            {/* Configuration Details */}
+            <div className="grid gap-6 md:grid-cols-2 mb-8">
+                {/* Accelerator Tiers */}
+                {plan.acceleratorsEnabled && (
+                    <Card>
+                        <CardHeader className="pb-3">
+                            <div className="flex items-center gap-2">
+                                <Zap className="h-4 w-4 text-amber-500" />
+                                <CardTitle className="text-sm font-medium">Accelerator Tiers</CardTitle>
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            {acceleratorTiers.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">No tiers configured.</p>
+                            ) : (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead className="text-xs h-8">Attainment Range</TableHead>
+                                            <TableHead className="text-xs h-8 text-right">Multiplier</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {acceleratorTiers.map((tier, i) => (
+                                            <TableRow key={i}>
+                                                <TableCell className="py-2 text-sm">
+                                                    {tier.minAttainment}% – {tier.maxAttainment === null ? "∞" : `${tier.maxAttainment}%`}
+                                                </TableCell>
+                                                <TableCell className="py-2 text-sm text-right font-mono">
+                                                    {tier.multiplier}×
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            )}
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* Kicker Bonuses */}
+                {plan.kickersEnabled && (
+                    <Card>
+                        <CardHeader className="pb-3">
+                            <div className="flex items-center gap-2">
+                                <Award className="h-4 w-4 text-purple-500" />
+                                <CardTitle className="text-sm font-medium">Kicker Bonuses</CardTitle>
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            {kickerBonuses.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">No kickers configured.</p>
+                            ) : (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead className="text-xs h-8">Attainment Threshold</TableHead>
+                                            <TableHead className="text-xs h-8 text-right">Bonus (% of OTE)</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {kickerBonuses.map((kicker, i) => (
+                                            <TableRow key={i}>
+                                                <TableCell className="py-2 text-sm">
+                                                    ≥ {kicker.attainmentThreshold}%
+                                                </TableCell>
+                                                <TableCell className="py-2 text-sm text-right font-mono">
+                                                    {kicker.bonusPercent}%
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            )}
+                        </CardContent>
+                    </Card>
+                )}
             </div>
 
-            {/* Ramp Schedule Configuration */}
-            {currentVersion && (
-                <div className="mt-8">
-                    <RampConfigurationForm
-                        versionId={currentVersion.id}
-                        initialSteps={currentVersion.steps ?? []}
-                    />
-                </div>
+            {/* Ramp Schedule Summary */}
+            {rampSteps.length > 0 && (
+                <Card>
+                    <CardHeader className="pb-3">
+                        <div className="flex items-center gap-2">
+                            <TrendingUp className="h-4 w-4 text-blue-500" />
+                            <CardTitle className="text-sm font-medium">Ramp Schedule</CardTitle>
+                            <Badge variant="outline" className="text-xs ml-auto">
+                                {rampSteps.length} step{rampSteps.length !== 1 ? "s" : ""}
+                            </Badge>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="text-xs h-8">Month</TableHead>
+                                    <TableHead className="text-xs h-8">Quota %</TableHead>
+                                    <TableHead className="text-xs h-8">Draw (% Variable)</TableHead>
+                                    <TableHead className="text-xs h-8">Draw Type</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {[...rampSteps]
+                                    .sort((a, b) => a.monthIndex - b.monthIndex)
+                                    .map((step) => (
+                                        <TableRow key={step.id}>
+                                            <TableCell className="py-2 text-sm">
+                                                <Badge variant="secondary" className="font-mono text-xs">
+                                                    Month {step.monthIndex}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="py-2 text-sm font-mono">
+                                                {(step.quotaPercentage * 100).toFixed(0)}%
+                                            </TableCell>
+                                            <TableCell className="py-2 text-sm font-mono">
+                                                {step.guaranteedDrawPercent ? `${step.guaranteedDrawPercent}%` : "—"}
+                                            </TableCell>
+                                            <TableCell className="py-2 text-sm">
+                                                <Badge variant="outline" className="text-xs">
+                                                    {step.drawType === "RECOVERABLE" ? "Recoverable" : "Non-Recoverable"}
+                                                </Badge>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
             )}
         </div>
     );

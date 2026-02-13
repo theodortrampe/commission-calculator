@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { CURRENT_ORG_ID } from "@/lib/constants";
 import { revalidatePath } from "next/cache";
 
 export interface AcceleratorTier {
@@ -39,33 +40,23 @@ export interface CompPlanSettings {
  */
 export async function getCompPlanSettings(): Promise<CompPlanSettings | null> {
     const compPlan = await prisma.compPlan.findFirst({
+        where: { organizationId: CURRENT_ORG_ID },
         orderBy: { name: "asc" },
-        include: {
-            versions: {
-                orderBy: { effectiveFrom: "desc" },
-                take: 1,
-            },
-        },
     });
 
     if (!compPlan) {
         return null;
     }
 
-    const latestVersion = compPlan.versions[0];
-    if (!latestVersion) {
-        return null;
-    }
-
     return {
         id: compPlan.id,
         name: compPlan.name,
-        baseRateMultiplier: latestVersion.baseRateMultiplier,
-        acceleratorsEnabled: latestVersion.acceleratorsEnabled,
-        kickersEnabled: latestVersion.kickersEnabled,
-        quota: latestVersion.quota,
-        accelerators: latestVersion.accelerators as AcceleratorConfig | null,
-        kickers: latestVersion.kickers as KickerConfig | null,
+        baseRateMultiplier: compPlan.baseRateMultiplier,
+        acceleratorsEnabled: compPlan.acceleratorsEnabled,
+        kickersEnabled: compPlan.kickersEnabled,
+        quota: compPlan.quota,
+        accelerators: compPlan.accelerators as AcceleratorConfig | null,
+        kickers: compPlan.kickers as KickerConfig | null,
     };
 }
 
@@ -131,18 +122,8 @@ export async function updateCompPlanSettings(
             })
             .join(", ");
 
-        // Find the latest version for this plan and update it
-        const latestVersion = await prisma.compPlanVersion.findFirst({
-            where: { planId: input.id },
-            orderBy: { effectiveFrom: "desc" },
-        });
-
-        if (!latestVersion) {
-            return { success: false, error: "No version found for this plan" };
-        }
-
-        await prisma.compPlanVersion.update({
-            where: { id: latestVersion.id },
+        await prisma.compPlan.update({
+            where: { id: input.id },
             data: {
                 baseRateMultiplier,
                 acceleratorsEnabled: input.acceleratorsEnabled,

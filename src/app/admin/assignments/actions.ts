@@ -2,6 +2,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { CURRENT_ORG_ID } from "@/lib/constants";
 import { Role } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
@@ -43,6 +44,7 @@ export async function getUsersAndPlans() {
     const [users, plans] = await Promise.all([
         prisma.user.findMany({
             where: {
+                organizationId: CURRENT_ORG_ID,
                 role: {
                     in: [Role.REP, Role.MANAGER], // Allow assigning to REPs and MANAGERs
                 },
@@ -57,6 +59,7 @@ export async function getUsersAndPlans() {
             },
         }),
         prisma.compPlan.findMany({
+            where: { organizationId: CURRENT_ORG_ID },
             select: {
                 id: true,
                 name: true,

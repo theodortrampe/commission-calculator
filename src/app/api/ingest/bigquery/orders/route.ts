@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { CURRENT_ORG_ID } from "@/lib/constants";
 import { OrderStatus } from "@prisma/client";
 
 /**
@@ -75,7 +76,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<IngestRes
 
         // Find user by email
         const user = await prisma.user.findUnique({
-            where: { email: body.userEmail },
+            where: { email_organizationId: { email: body.userEmail, organizationId: CURRENT_ORG_ID } },
         });
 
         if (!user) {
@@ -123,6 +124,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<IngestRes
                     status,
                     bookingDate,
                     userId: user.id,
+                    organizationId: CURRENT_ORG_ID,
                 },
             });
             orderCreated = true;
@@ -193,7 +195,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
 
                 // Find user
                 const user = await prisma.user.findUnique({
-                    where: { email: row.userEmail },
+                    where: { email_organizationId: { email: row.userEmail, organizationId: CURRENT_ORG_ID } },
                 });
 
                 if (!user) {
@@ -223,6 +225,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
                         status,
                         bookingDate,
                         userId: user.id,
+                        organizationId: CURRENT_ORG_ID,
                     },
                     update: {
                         convertedUsd: row.convertedUsd,

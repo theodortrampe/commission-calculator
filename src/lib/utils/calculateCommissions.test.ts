@@ -2,6 +2,7 @@
 import { prisma } from "@/lib/prisma";
 import { calculateCommissions } from "./calculateCommissions";
 import { PayoutFreq, OrderStatus, Role } from "@prisma/client";
+import { CURRENT_ORG_ID } from "@/lib/constants";
 
 // Increase timeout for DB operations
 jest.setTimeout(30000);
@@ -10,8 +11,6 @@ describe("calculateCommissions Integration Test", () => {
     // Shared IDs
     let userId: string;
     let planId: string;
-    let version1Id: string;
-    let version2Id: string;
 
     const testMonth = new Date(Date.UTC(2025, 0, 1)); // Jan 2025
 
@@ -22,9 +21,19 @@ describe("calculateCommissions Integration Test", () => {
         await prisma.order.deleteMany();
         await prisma.userPeriodData.deleteMany();
         await prisma.planAssignment.deleteMany();
-        await prisma.compPlanVersion.deleteMany();
+        await prisma.rampStep.deleteMany();
         await prisma.user.deleteMany();
         await prisma.compPlan.deleteMany();
+        await prisma.organization.deleteMany();
+
+        // 0. Create Organization
+        await prisma.organization.create({
+            data: {
+                id: CURRENT_ORG_ID,
+                name: 'Test Organization',
+                slug: 'test-org',
+            },
+        });
 
         // 1. Create User
         const user = await prisma.user.create({
@@ -32,43 +41,24 @@ describe("calculateCommissions Integration Test", () => {
                 name: "Test User",
                 email: "test@example.com",
                 role: Role.REP,
+                organizationId: CURRENT_ORG_ID,
             }
         });
         userId = user.id;
 
-        // 2. Create Comp Plan
+        // 2. Create Comp Plan with config directly
         const plan = await prisma.compPlan.create({
             data: {
                 name: "Test Plan",
                 frequency: PayoutFreq.MONTHLY,
                 description: "Test Plan Description",
+                organizationId: CURRENT_ORG_ID,
+                baseRateMultiplier: 1.0,
+                acceleratorsEnabled: false,
+                kickersEnabled: false,
             }
         });
         planId = plan.id;
-
-        // 3. Create Version 1 (10% Rate)
-        const v1 = await prisma.compPlanVersion.create({
-            data: {
-                planId: plan.id,
-                versionNumber: 1,
-                effectiveFrom: new Date(Date.UTC(2024, 0, 1)), // Old version
-                baseRateMultiplier: 1.0,
-                acceleratorsEnabled: false,
-            }
-        });
-        version1Id = v1.id;
-
-        // 4. Create Version 2 (20% Rate - Double Multiplier for test)
-        const v2 = await prisma.compPlanVersion.create({
-            data: {
-                planId: plan.id,
-                versionNumber: 2,
-                effectiveFrom: new Date(Date.UTC(2025, 0, 15)), // Mid-Jan
-                baseRateMultiplier: 2.0,
-                acceleratorsEnabled: false,
-            }
-        });
-        version2Id = v2.id;
     });
 
     afterAll(async () => {
@@ -81,18 +71,11 @@ describe("calculateCommissions Integration Test", () => {
         await prisma.order.deleteMany();
         await prisma.userPeriodData.deleteMany();
         await prisma.planAssignment.deleteMany();
-
-        // Reset Version 2 effective date to original (Jan 15) to avoid pollution
-        if (version2Id) {
-            await prisma.compPlanVersion.update({
-                where: { id: version2Id },
-                data: { effectiveFrom: new Date(Date.UTC(2025, 0, 15)) }
-            });
-        }
+        await prisma.rampStep.deleteMany();
     });
 
-    it("should use the default plan version from UserPeriodData if no assignment exists", async () => {
-        // Setup Period Data pointing to Version 1
+    it("should use the plan from UserPeriodData if no assignment exists", async () => {
+        // Setup Period Data pointing to the plan
         await prisma.userPeriodData.create({
             data: {
                 userId,
@@ -101,7 +84,7 @@ describe("calculateCommissions Integration Test", () => {
                 baseSalary: 5000,
                 ote: 10000,
                 effectiveRate: 0.1, // 10%
-                planVersionId: version1Id
+                planId
             }
         });
 
@@ -109,6 +92,7 @@ describe("calculateCommissions Integration Test", () => {
         await prisma.order.create({
             data: {
                 userId,
+                organizationId: CURRENT_ORG_ID,
                 orderNumber: "ORD-002",
                 bookingDate: testMonth,
                 status: OrderStatus.APPROVED,
@@ -123,15 +107,21 @@ describe("calculateCommissions Integration Test", () => {
             endDate: new Date(Date.UTC(2025, 0, 31, 23, 59, 59))
         });
 
-        // Version 1 has 1.0 multiplier. Base Rate 10%.
+        // Plan has 1.0 multiplier. Base Rate 10%.
         // Commission = 1000 * 0.1 * 1.0 = 100
         expect(result.commissionEarned).toBeCloseTo(100);
         expect(result.periodData.planName).toBe("Test Plan");
     });
 
-    it("should dynamically switch to a newer version based on assignment", async () => {
-        // Setup Period Data initially pointing to Version 1
-        const periodData = await prisma.userPeriodData.create({
+    it("should use plan config from assignment when present", async () => {
+        // Update the plan to have 2.0 multiplier for this test
+        await prisma.compPlan.update({
+            where: { id: planId },
+            data: { baseRateMultiplier: 2.0 }
+        });
+
+        // Setup Period Data
+        await prisma.userPeriodData.create({
             data: {
                 userId,
                 month: testMonth,
@@ -139,29 +129,11 @@ describe("calculateCommissions Integration Test", () => {
                 baseSalary: 5000,
                 ote: 10000,
                 effectiveRate: 0.1,
-                planVersionId: version1Id // Starts with V1
+                planId
             }
         });
 
-        // Create Assignment for Version 2 starting Jan 1st
-        // Note: Assignments link to Plan, but logic picks version by date.
-        // V2 effective from Jan 15th. 
-        // If we assign the plan from Jan 1st, and calculation runs for Jan,
-        // it should pick V2 if the logic finds V2 is effective <= period.
-
-        // Wait, V2 is effective Jan 15. The period is Jan.
-        // "Find the version effective for this period" usually means effectiveFrom <= periodStart (or End).
-        // My logic: `activeAssignment.plan.versions.find(v => v.effectiveFrom <= periodMonth)`
-        // periodMonth is Jan 1.
-        // V2 effectiveFrom is Jan 15.
-        // So it should actually pick V1 (effective Jan 1 2024) if strictly <= Jan 1 2025.
-        // Let's adjust V2 effective date to Jan 1 2025 to ensure it gets picked.
-
-        await prisma.compPlanVersion.update({
-            where: { id: version2Id },
-            data: { effectiveFrom: new Date(Date.UTC(2025, 0, 1)) }
-        });
-
+        // Create Assignment
         await prisma.planAssignment.create({
             data: {
                 userId,
@@ -174,6 +146,7 @@ describe("calculateCommissions Integration Test", () => {
         await prisma.order.create({
             data: {
                 userId,
+                organizationId: CURRENT_ORG_ID,
                 orderNumber: "ORD-001",
                 bookingDate: testMonth,
                 status: OrderStatus.APPROVED,
@@ -188,20 +161,18 @@ describe("calculateCommissions Integration Test", () => {
             endDate: new Date(Date.UTC(2025, 0, 31, 23, 59, 59))
         });
 
-        // Version 2 has 2.0 multiplier. Base Rate 10%.
+        // Plan has 2.0 multiplier. Base Rate 10%.
         // Commission = 1000 * 0.1 * 2.0 = 200
         expect(result.commissionEarned).toBeCloseTo(200);
 
-        // Verify DB was updated
-        const updatedPeriodData = await prisma.userPeriodData.findUnique({ where: { id: periodData.id } });
-        expect(updatedPeriodData?.planVersionId).toBe(version2Id);
+        // Reset multiplier for other tests
+        await prisma.compPlan.update({
+            where: { id: planId },
+            data: { baseRateMultiplier: 1.0 }
+        });
     });
 
     it("should prorate quota and OTE for partial month assignment", async () => {
-        // Clear previous data
-        await prisma.planAssignment.deleteMany({ where: { userId } });
-        await prisma.userPeriodData.deleteMany({ where: { userId } });
-
         // Setup Period Data (Full Month Values)
         const fullQuota = 10000;
         const fullOTE = 10000;
@@ -213,7 +184,7 @@ describe("calculateCommissions Integration Test", () => {
                 baseSalary: 5000,
                 ote: fullOTE,
                 effectiveRate: 0.1,
-                planVersionId: version1Id
+                planId
             }
         });
 
@@ -233,6 +204,7 @@ describe("calculateCommissions Integration Test", () => {
         await prisma.order.create({
             data: {
                 userId,
+                organizationId: CURRENT_ORG_ID,
                 orderNumber: "ORD-PRORATED",
                 bookingDate: new Date(Date.UTC(2025, 0, 20)), // Inside active period
                 status: OrderStatus.APPROVED,
@@ -267,19 +239,16 @@ describe("calculateCommissions Integration Test", () => {
     });
 
     it("should apply ramp logic: Quota override, Draw, and No Accelerators", async () => {
-        // Clear previous data
-        await prisma.planAssignment.deleteMany({ where: { userId } });
-        await prisma.userPeriodData.deleteMany({ where: { userId } });
-        await prisma.rampStep.deleteMany(); // Clear ramps
-
-        // 1. Setup Ramp Step on Version 1
-        // Month 1: 50% Quota, $4000 Draw
+        // 1. Setup Ramp Step on Plan
+        // Month 1: 50% Quota, 80% of variable bonus draw
+        // Variable bonus = OTE - base = 10000 - 5000 = 5000
+        // Draw amount = 80% × 5000 = $4000
         await prisma.rampStep.create({
             data: {
-                planVersionId: version1Id,
+                planId,
                 monthIndex: 1,
                 quotaPercentage: 0.5,
-                guaranteedDraw: 4000,
+                guaranteedDrawPercent: 80,
                 drawType: "NON_RECOVERABLE"
             }
         });
@@ -294,7 +263,7 @@ describe("calculateCommissions Integration Test", () => {
                 baseSalary: 5000,
                 ote: 10000,
                 effectiveRate: 0.1,
-                planVersionId: version1Id
+                planId
             }
         });
 
@@ -316,6 +285,7 @@ describe("calculateCommissions Integration Test", () => {
         await prisma.order.create({
             data: {
                 userId,
+                organizationId: CURRENT_ORG_ID,
                 orderNumber: "ORD-RAMP-1",
                 bookingDate: new Date(Date.UTC(2025, 0, 15)),
                 status: OrderStatus.APPROVED,
@@ -343,21 +313,15 @@ describe("calculateCommissions Integration Test", () => {
     });
 
     it("should prorate ramp draw for partial month", async () => {
-        // Clear previous data
-        await prisma.planAssignment.deleteMany({ where: { userId } });
-        await prisma.userPeriodData.deleteMany({ where: { userId } });
-
-        // Ensure Ramp Step exists (it does from previous test, but let's be safe if tests run independently/parallel, though jest runs sequential in file)
-        // To be safe, upsert or just assume creates are fine if we clean up.
-        // We cleared rampStep table above? Yes.
         // Re-create ramp step for this test.
-        await prisma.rampStep.deleteMany();
+        // Draw: 80% of variable bonus (OTE 10000 - base 5000 = 5000 variable)
+        // = $4000 pre-proration
         await prisma.rampStep.create({
             data: {
-                planVersionId: version1Id,
+                planId,
                 monthIndex: 1,
                 quotaPercentage: 0.5,
-                guaranteedDraw: 4000,
+                guaranteedDrawPercent: 80,
                 drawType: "NON_RECOVERABLE"
             }
         });
@@ -371,7 +335,7 @@ describe("calculateCommissions Integration Test", () => {
                 baseSalary: 5000,
                 ote: 10000,
                 effectiveRate: 0.1,
-                planVersionId: version1Id
+                planId
             }
         });
 
@@ -395,7 +359,7 @@ describe("calculateCommissions Integration Test", () => {
         // Active Days: 17. Total: 31. Factor: ~0.548.
         const expectedFactor = 17 / 31;
         const expectedQuota = 5000 * expectedFactor; // Ramp 5000 -> Prorated
-        const expectedDraw = 4000 * expectedFactor;  // Draw 4000 -> Prorated
+        const expectedDraw = 0.8 * (10000 - 5000) * expectedFactor; // 80% of variable bonus ($5000), then prorated
 
         expect(result.ramp?.isActive).toBe(true);
         expect(result.periodData.quota).toBeCloseTo(expectedQuota, 2);
@@ -405,42 +369,31 @@ describe("calculateCommissions Integration Test", () => {
     });
 
     it('should allow accelerators during ramp if disableAccelerators is false', async () => {
-        // 1. Setup Ramp Step with disableAccelerators = false
-        // We need to use a new plan version or ensure no conflict. 
-        // Let's create a new version 2 for this test to be clean.
-        const version2Id = 'test-version-2-accel';
-
-        // Clean up previous test artifacts if any
-        await prisma.order.deleteMany({ where: { orderNumber: 'ORD-RAMP-ACC-1' } });
-        await prisma.userPeriodData.deleteMany({ where: { userId, month: new Date('2025-01-01T00:00:00Z') } });
-
-        await prisma.compPlanVersion.upsert({
-            where: { id: version2Id },
-            create: {
-                id: version2Id,
-                planId: planId, // Reuse existing plan
-                effectiveFrom: new Date('2025-01-01T00:00:00Z'),
+        // 1. Update plan to enable accelerators with tiers
+        await prisma.compPlan.update({
+            where: { id: planId },
+            data: {
                 acceleratorsEnabled: true,
                 accelerators: {
                     tiers: [{ minAttainment: 100, maxAttainment: null, multiplier: 2.0 }]
                 }
-            },
-            update: {}
+            }
         });
 
+        // 2. Create ramp step with disableAccelerators = false
         await prisma.rampStep.create({
             data: {
-                planVersionId: version2Id,
+                planId,
                 monthIndex: 1,
                 quotaPercentage: 0.5,
-                guaranteedDraw: 1000,
+                guaranteedDrawPercent: 0,
                 drawType: 'NON_RECOVERABLE',
                 disableAccelerators: false, // ENABLED!
                 disableKickers: true
             }
         });
 
-        // 2. Setup Period Data pointing to Version 2
+        // 3. Setup Period Data
         // Quota 10000 -> Ramp 5000
         // OTE 20000 -> Ramp 10000
         await prisma.userPeriodData.create({
@@ -451,11 +404,11 @@ describe("calculateCommissions Integration Test", () => {
                 baseSalary: 100000,
                 ote: 220000,
                 effectiveRate: 0.1, // 10%
-                planVersionId: version2Id
+                planId
             }
         });
 
-        // 2b. Create Plan Assignment (CRITICAL for Ramp Start Date)
+        // 3b. Create Plan Assignment (CRITICAL for Ramp Start Date)
         await prisma.planAssignment.create({
             data: {
                 userId: userId,
@@ -464,7 +417,7 @@ describe("calculateCommissions Integration Test", () => {
             }
         });
 
-        // 3. Create Orders (High revenue to trigger accelerator)
+        // 4. Create Orders (High revenue to trigger accelerator)
         // Ramp Quota is 5000.
         // Revenue 8000.
         // Base: 5000 * 10% = 500
@@ -474,6 +427,7 @@ describe("calculateCommissions Integration Test", () => {
             data: {
                 orderNumber: 'ORD-RAMP-ACC-1',
                 userId: userId,
+                organizationId: CURRENT_ORG_ID,
                 convertedUsd: 8000,
                 convertedEur: 7500,
                 status: 'APPROVED',
@@ -494,5 +448,14 @@ describe("calculateCommissions Integration Test", () => {
         // Total: 1100
         expect(result.commissionEarned).toBeCloseTo(1100, 2);
         expect(result.breakdown.acceleratorMultiplier).toBeGreaterThan(1);
+
+        // Reset accelerators for other tests
+        await prisma.compPlan.update({
+            where: { id: planId },
+            data: {
+                acceleratorsEnabled: false,
+                accelerators: null
+            }
+        });
     });
 });

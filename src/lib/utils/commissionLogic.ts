@@ -55,7 +55,8 @@ export interface CommissionResult {
         monthIndex: number;
         originalQuota: number;
         rampedQuotaPreProration: number;
-        guaranteedDraw: number;
+        guaranteedDrawPercent: number;
+        guaranteedDrawAmount: number;
         drawTopUp: number;
     };
 }

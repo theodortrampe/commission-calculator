@@ -10,6 +10,28 @@ datasource db {
 }
 
 // --------------------------------------
+// 0. ORGANIZATION (Multi-Tenant)
+// --------------------------------------
+
+model Organization {
+  id        String   @id @default("default-org-001")
+  name      String   @default("My First Client")
+  slug      String   @unique @default("client-slug")
+
+  // Relations
+  users       User[]
+  compPlans   CompPlan[]
+  orders      Order[]
+  payouts     Payout[]
+  adjustments Adjustment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("organizations")
+}
+
+// --------------------------------------
 // 1. USERS
 // --------------------------------------
 
@@ -21,7 +43,7 @@ enum Role {
 
 model User {
   id            String    @id @default(uuid())
-  email         String    @unique
+  email         String
   name          String
   role          Role      @default(REP)
   
@@ -30,6 +52,10 @@ model User {
   emailVerified DateTime?
   image         String?
   
+  // Multi-tenancy
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
   // Hierarchy
   managerId String?
   manager   User?    @relation("ManagerToRep", fields: [managerId], references: [id])
@@ -47,6 +73,9 @@ model User {
   sessions    Session[]
 
   createdAt DateTime @default(now())
+
+  @@index([organizationId])
+  @@unique([email, organizationId])
   @@map("users")
 }
 
@@ -105,8 +134,8 @@ model UserPeriodData {
   effectiveRate Float  // (OTE - Base) / Quota
 
   // Relations
-  planVersionId String?
-  planVersion   CompPlanVersion? @relation(fields: [planVersionId], references: [id])
+  planId        String?
+  plan          CompPlan? @relation(fields: [planId], references: [id])
 
   @@unique([userId, month])
   @@map("user_period_data")
@@ -134,10 +163,15 @@ model Order {
   status         OrderStatus
   bookingDate    DateTime    
 
+  // Multi-tenancy
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
   // Relations
   userId         String
   user           User        @relation(fields: [userId], references: [id])
   
+  @@index([organizationId])
   @@map("orders")
 }
 
@@ -156,57 +190,41 @@ model CompPlan {
   frequency   PayoutFreq
   description String?    // "Core AE plan with standard accelerators"
 
-  // Relations
-  versions    CompPlanVersion[]
-  assignments PlanAssignment[]
-
-  @@map("comp_plans")
-}
-
-model CompPlanVersion {
-  id          String     @id @default(uuid())
-  
-  // Link to parent plan
-  planId      String
-  plan        CompPlan   @relation(fields: [planId], references: [id])
-
-  versionNumber Int      @default(1)
-  effectiveFrom DateTime @default(now())
-  isDraft       Boolean  @default(false)
-
-  // Logic fields (moved from CompPlan)
-  baseRateMultiplier Float @default(1.0)
-  quota               Float   @default(0.0)
+  // Logic fields
+  baseRateMultiplier Float   @default(1.0)
+  quota              Float   @default(0.0)
   acceleratorsEnabled Boolean @default(true)
   kickersEnabled      Boolean @default(false)
   accelerators Json?
-  kickers Json?
+  kickers      Json?
+
+  // Multi-tenancy
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
 
   // Relations
-  periodData   UserPeriodData[] // Period data uses a specific version logic
-
-  createdAt   DateTime   @default(now())
-
-  // Relations
+  assignments PlanAssignment[]
   steps       RampStep[]
+  periodData  UserPeriodData[]
 
-  @@map("comp_plan_versions")
+  @@index([organizationId])
+  @@map("comp_plans")
 }
 
 model RampStep {
-  id             String   @id @default(uuid())
-  planVersionId  String
-  planVersion    CompPlanVersion @relation(fields: [planVersionId], references: [id], onDelete: Cascade)
+  id        String   @id @default(uuid())
+  planId    String
+  plan      CompPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
   
   monthIndex     Int      // 1, 2, 3...
   quotaPercentage Float   // 0.5 = 50%
-  guaranteedDraw Decimal? // Optional fixed amount
+  guaranteedDrawPercent Float? // % of variable bonus (e.g. 75 = 75%)
   drawType       DrawType @default(NON_RECOVERABLE)
   
   disableAccelerators Boolean @default(true)
   disableKickers      Boolean @default(true)
 
-  @@unique([planVersionId, monthIndex])
+  @@unique([planId, monthIndex])
   @@map("ramp_steps")
 }
 
@@ -223,7 +241,7 @@ model PlanAssignment {
   user      User?    @relation(fields: [userId], references: [id])
   role      Role?    // Optional: Assign to all REPs
   
-  // Which Plan? (Not version, version is determined by date)
+  // Which Plan?
   planId    String
   plan      CompPlan @relation(fields: [planId], references: [id])
   
@@ -261,12 +279,17 @@ model Payout {
   
   status         PayoutStatus @default(DRAFT)
 
+  // Multi-tenancy
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
   userId         String
   user           User         @relation(fields: [userId], references: [id])
   adjustments    Adjustment[] 
   
   createdAt      DateTime     @default(now())
 
+  @@index([organizationId])
   @@map("payouts")
 }
 
@@ -276,6 +299,10 @@ model Adjustment {
   reason         String   
   adjustmentType AdjustmentType @default(FIXED_BONUS)
   
+  // Multi-tenancy
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
   // Link to user and period (allows adjustments before payout exists)
   userId         String
   user           User           @relation(fields: [userId], references: [id])
@@ -287,5 +314,6 @@ model Adjustment {
   
   createdAt      DateTime       @default(now())
 
+  @@index([organizationId])
   @@map("adjustments")
 }

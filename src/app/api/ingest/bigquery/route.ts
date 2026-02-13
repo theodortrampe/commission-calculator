@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { CURRENT_ORG_ID } from "@/lib/constants";
 import { Role } from "@prisma/client";
 
 /**
@@ -14,7 +15,7 @@ interface BigQueryRow {
     quota: number;
     baseSalary: number;
     ote: number;
-    planVersionId?: string;
+    planId?: string;
     role?: "ADMIN" | "REP" | "MANAGER";
 }
 
@@ -94,7 +95,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<IngestRes
 
         // Find or create user
         let user = await prisma.user.findUnique({
-            where: { email: body.email },
+            where: { email_organizationId: { email: body.email, organizationId: CURRENT_ORG_ID } },
         });
 
         let userCreated = false;
@@ -105,6 +106,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<IngestRes
                     email: body.email,
                     name: body.name || body.email.split("@")[0],
                     role: (body.role as Role) || Role.REP,
+                    organizationId: CURRENT_ORG_ID,
                 },
             });
             userCreated = true;
@@ -126,7 +128,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<IngestRes
                 baseSalary: body.baseSalary,
                 ote: body.ote,
                 effectiveRate,
-                planVersionId: body.planVersionId || null,
+                planId: body.planId || null,
             },
             update: {
                 title: body.title,
@@ -134,7 +136,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<IngestRes
                 baseSalary: body.baseSalary,
                 ote: body.ote,
                 effectiveRate,
-                planVersionId: body.planVersionId || null,
+                planId: body.planId || null,
             },
         });
 
@@ -195,11 +197,12 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
 
                 // Upsert user
                 const user = await prisma.user.upsert({
-                    where: { email: row.email },
+                    where: { email_organizationId: { email: row.email, organizationId: CURRENT_ORG_ID } },
                     create: {
                         email: row.email,
                         name: row.name || row.email.split("@")[0],
                         role: (row.role as Role) || Role.REP,
+                        organizationId: CURRENT_ORG_ID,
                     },
                     update: {
                         name: row.name || undefined,
@@ -222,7 +225,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
                         baseSalary: row.baseSalary,
                         ote: row.ote,
                         effectiveRate,
-                        planVersionId: row.planVersionId || null,
+                        planId: row.planId || null,
                     },
                     update: {
                         title: row.title,
@@ -230,7 +233,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
                         baseSalary: row.baseSalary,
                         ote: row.ote,
                         effectiveRate,
-                        planVersionId: row.planVersionId || null,
+                        planId: row.planId || null,
                     },
                 });
 

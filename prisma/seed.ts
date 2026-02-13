@@ -25,29 +25,34 @@ async function main() {
     await prisma.payout.deleteMany();
     await prisma.order.deleteMany();
     await prisma.userPeriodData.deleteMany();
-    await prisma.planAssignment.deleteMany(); // Delete assignments first
-    await prisma.compPlanVersion.deleteMany(); // Delete versions before plans
+    await prisma.planAssignment.deleteMany();
+    await prisma.rampStep.deleteMany();
     await prisma.user.deleteMany();
     await prisma.compPlan.deleteMany();
+    await prisma.organization.deleteMany();
 
     console.log("🧹 Cleaned up existing data");
 
-    // Create CompPlan with accelerator structure (VERSIONED)
+    // Create default Organization
+    const org = await prisma.organization.create({
+        data: {
+            id: 'default-org-001',
+            name: 'Demo Company',
+            slug: 'demo',
+        },
+    });
+    console.log(`✅ Created Organization: ${org.name}`);
+
+    // Create CompPlan with accelerator structure
     const compPlan = await prisma.compPlan.create({
         data: {
             name: "AE 2024 Accelerator Plan",
             frequency: PayoutFreq.MONTHLY,
             description: "Standard AE plan with accelerators",
-        }
-    });
-    console.log("✅ Created CompPlan:", compPlan.name);
-
-    const compPlanVersion = await prisma.compPlanVersion.create({
-        data: {
-            planId: compPlan.id,
-            versionNumber: 1,
-            effectiveFrom: new Date(2025, 0, 1), // Jan 1, 2025
+            organizationId: org.id,
             baseRateMultiplier: 1.0,
+            acceleratorsEnabled: true,
+            kickersEnabled: false,
             accelerators: {
                 tiers: [
                     { minAttainment: 0, maxAttainment: 100, multiplier: 1.0 },
@@ -59,8 +64,7 @@ async function main() {
             },
         }
     });
-
-    console.log("✅ Created CompPlan Version:", compPlanVersion.versionNumber);
+    console.log("✅ Created CompPlan:", compPlan.name);
 
     // Create Admin user with password
     const admin = await prisma.user.create({
@@ -69,6 +73,7 @@ async function main() {
             name: "Admin User",
             role: Role.ADMIN,
             passwordHash: ADMIN_PASSWORD,
+            organizationId: org.id,
         },
     });
     console.log("✅ Created Admin:", admin.name);
@@ -80,6 +85,7 @@ async function main() {
             name: "John Doe",
             role: Role.REP,
             passwordHash: REP_PASSWORD,
+            organizationId: org.id,
         },
     });
     console.log("✅ Created Rep:", johnDoe.name);
@@ -99,6 +105,7 @@ async function main() {
             name: "Jane Smith",
             role: Role.REP,
             passwordHash: REP_PASSWORD,
+            organizationId: org.id,
         },
     });
     console.log("✅ Created Rep:", janeSmith.name);
@@ -127,7 +134,7 @@ async function main() {
             baseSalary: 80000,
             ote: 160000,
             effectiveRate: (160000 - 80000) / 150000,
-            planVersionId: compPlanVersion.id,
+            planId: compPlan.id,
         },
     });
 
@@ -140,7 +147,7 @@ async function main() {
             baseSalary: 80000,
             ote: 160000,
             effectiveRate: (160000 - 80000) / 140000,
-            planVersionId: compPlanVersion.id,
+            planId: compPlan.id,
         },
     });
     console.log("✅ Created UserPeriodData for John Doe");
@@ -155,7 +162,7 @@ async function main() {
             baseSalary: 60000,
             ote: 120000,
             effectiveRate: (120000 - 60000) / 100000,
-            planVersionId: compPlanVersion.id,
+            planId: compPlan.id,
         },
     });
 
@@ -168,7 +175,7 @@ async function main() {
             baseSalary: 60000,
             ote: 120000,
             effectiveRate: (120000 - 60000) / 90000,
-            planVersionId: compPlanVersion.id,
+            planId: compPlan.id,
         },
     });
     console.log("✅ Created UserPeriodData for Jane Smith");
@@ -187,6 +194,7 @@ async function main() {
             data: {
                 ...order,
                 userId: johnDoe.id,
+                organizationId: org.id,
                 bookingDate: new Date(currentMonth.getFullYear(), currentMonth.getMonth(), Math.floor(Math.random() * 28) + 1),
             },
         });
@@ -207,6 +215,7 @@ async function main() {
             data: {
                 ...order,
                 userId: johnDoe.id,
+                organizationId: org.id,
                 bookingDate: new Date(lastMonth.getFullYear(), lastMonth.getMonth(), Math.floor(Math.random() * 28) + 1),
             },
         });
@@ -227,6 +236,7 @@ async function main() {
             data: {
                 ...order,
                 userId: janeSmith.id,
+                organizationId: org.id,
                 bookingDate: new Date(currentMonth.getFullYear(), currentMonth.getMonth(), Math.floor(Math.random() * 28) + 1),
             },
         });
@@ -247,6 +257,7 @@ async function main() {
             data: {
                 ...order,
                 userId: janeSmith.id,
+                organizationId: org.id,
                 bookingDate: new Date(lastMonth.getFullYear(), lastMonth.getMonth(), Math.floor(Math.random() * 28) + 1),
             },
         });
@@ -255,6 +266,7 @@ async function main() {
 
     console.log("\n📊 Seed Summary:");
     console.log("================");
+    console.log(`• 1 Organization (${org.name})`);
     console.log("• 1 Admin user");
     console.log("• 2 Sales Reps (John Doe, Jane Smith)");
     console.log("• 4 UserPeriodData records (2 per rep)");

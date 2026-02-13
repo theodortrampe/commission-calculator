@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { CURRENT_ORG_ID } from "@/lib/constants";
 import { DrawType, PayoutFreq } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
@@ -10,30 +11,17 @@ export type CompPlanSummary = {
     frequency: PayoutFreq;
     description: string | null;
     _count: {
-        versions: number;
         assignments: number;
     };
-    latestVersion: {
-        effectiveFrom: Date;
-    } | null;
 };
 
 export async function getCompPlans(): Promise<CompPlanSummary[]> {
     const plans = await prisma.compPlan.findMany({
+        where: { organizationId: CURRENT_ORG_ID },
         include: {
             _count: {
                 select: {
-                    versions: true,
                     assignments: true,
-                },
-            },
-            versions: {
-                orderBy: {
-                    effectiveFrom: "desc",
-                },
-                take: 1,
-                select: {
-                    effectiveFrom: true,
                 },
             },
         },
@@ -48,28 +36,28 @@ export async function getCompPlans(): Promise<CompPlanSummary[]> {
         frequency: plan.frequency,
         description: plan.description,
         _count: {
-            versions: plan._count.versions,
             assignments: plan._count.assignments,
         },
-        latestVersion: plan.versions[0] || null,
     }));
 }
 
+
+import { CompPlan, RampStep } from "@prisma/client";
+
+export type CompPlanDetail = CompPlan & {
+    steps: RampStep[];
+    _count: {
+        assignments: number;
+    };
+};
 
 export async function getCompPlan(id: string): Promise<CompPlanDetail | null> {
     const plan = await prisma.compPlan.findUnique({
         where: { id },
         include: {
-            versions: {
+            steps: {
                 orderBy: {
-                    effectiveFrom: "desc",
-                },
-                include: {
-                    steps: {
-                        orderBy: {
-                            monthIndex: "asc",
-                        },
-                    },
+                    monthIndex: "asc",
                 },
             },
             _count: {
@@ -82,43 +70,21 @@ export async function getCompPlan(id: string): Promise<CompPlanDetail | null> {
     return plan;
 }
 
-import { CompPlan, CompPlanVersion, RampStep } from "@prisma/client";
-
-export type CompPlanVersionWithDetails = CompPlanVersion & {
-    steps: RampStep[];
-};
-
-export type CompPlanDetail = CompPlan & {
-    versions: CompPlanVersionWithDetails[];
-    _count: {
-        assignments: number;
-    };
-};
-
-// export type CompPlanDetail = Awaited<ReturnType<typeof getCompPlan>>;
-
 export async function createCompPlan(data: {
     name: string;
     description: string;
     frequency: PayoutFreq;
 }) {
-    // Create plan AND initial draft version
     const plan = await prisma.compPlan.create({
         data: {
             name: data.name,
             description: data.description,
             frequency: data.frequency,
-            versions: {
-                create: {
-                    versionNumber: 1,
-                    effectiveFrom: new Date(),
-                    isDraft: true,
-                    // Default logic
-                    baseRateMultiplier: 1.0,
-                    acceleratorsEnabled: true,
-                    kickersEnabled: false,
-                },
-            },
+            organizationId: CURRENT_ORG_ID,
+            // Default logic
+            baseRateMultiplier: 1.0,
+            acceleratorsEnabled: true,
+            kickersEnabled: false,
         },
     });
 
@@ -126,15 +92,15 @@ export async function createCompPlan(data: {
     return plan.id;
 }
 
-export async function updateCompPlanVersion(versionId: string, data: {
+export async function updateCompPlan(planId: string, data: {
     baseRateMultiplier: number;
     acceleratorsEnabled: boolean;
     kickersEnabled: boolean;
     accelerators: any;
     kickers: any;
 }) {
-    await prisma.compPlanVersion.update({
-        where: { id: versionId },
+    await prisma.compPlan.update({
+        where: { id: planId },
         data: {
             baseRateMultiplier: data.baseRateMultiplier,
             acceleratorsEnabled: data.acceleratorsEnabled,
@@ -147,27 +113,27 @@ export async function updateCompPlanVersion(versionId: string, data: {
     revalidatePath("/admin/plans/[id]", "page");
 }
 
-export async function saveRampSteps(versionId: string, steps: {
+export async function saveRampSteps(planId: string, steps: {
     monthIndex: number;
     quotaPercentage: number;
-    guaranteedDraw: number | null;
+    guaranteedDrawPercent: number | null;
     drawType: "NON_RECOVERABLE" | "RECOVERABLE";
     disableAccelerators: boolean;
     disableKickers: boolean;
 }[]): Promise<{ success: boolean; error?: string }> {
     try {
-        // Delete existing steps for this version and create new ones atomically
+        // Delete existing steps for this plan and create new ones atomically
         await prisma.$transaction([
             prisma.rampStep.deleteMany({
-                where: { planVersionId: versionId },
+                where: { planId },
             }),
             ...steps.map(step =>
                 prisma.rampStep.create({
                     data: {
-                        planVersionId: versionId,
+                        planId,
                         monthIndex: step.monthIndex,
                         quotaPercentage: step.quotaPercentage,
-                        guaranteedDraw: step.guaranteedDraw,
+                        guaranteedDrawPercent: step.guaranteedDrawPercent,
                         drawType: step.drawType as DrawType,
                         disableAccelerators: step.disableAccelerators,
                         disableKickers: step.disableKickers,

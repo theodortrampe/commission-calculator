@@ -38,9 +38,9 @@ import { Role } from "@prisma/client";
 const formSchema = z.object({
     assignType: z.enum(["USER", "ROLE"]),
     userId: z.string().optional(),
-    role: z.nativeEnum(Role).optional(),
+    role: z.enum(Role).optional(),
     planId: z.string().min(1, "Plan is required"),
-    startDate: z.date(),
+    startDate: z.date({ error: issue => issue.input === undefined ? "Start date is required" : "Invalid date" }),
     endDate: z.date().optional(),
 }).refine((data) => {
     if (data.assignType === "USER" && !data.userId) return false;

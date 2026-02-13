@@ -70,11 +70,7 @@ export async function calculateCommissions(
             },
         },
         include: {
-            planVersion: {
-                include: {
-                    plan: true,
-                }
-            },
+            plan: true,
         },
     });
 
@@ -84,7 +80,7 @@ export async function calculateCommissions(
         );
     }
 
-    // --- Dynamic Plan Version Lookup ---
+    // --- Plan Lookup via Assignment ---
     // Check for an active plan assignment for this period
     const activeAssignment = await prisma.planAssignment.findFirst({
         where: {
@@ -96,39 +92,21 @@ export async function calculateCommissions(
             ]
         },
         include: {
-            plan: {
-                include: {
-                    versions: {
-                        orderBy: { effectiveFrom: 'desc' }
-                    }
-                }
-            }
+            plan: true,
         },
         orderBy: { startDate: 'desc' }
     });
 
-    let planVersion = periodData.planVersion;
+    // Use the plan from assignment, falling back to the one linked in periodData
+    let plan = activeAssignment?.plan ?? periodData.plan;
 
-    if (activeAssignment) {
-        // Find the version effective for this period
-        // Check if version is effective on or before calculation start
-        const effectiveVersion = activeAssignment.plan.versions.find(v => v.effectiveFrom <= calculationStart);
-
-        if (effectiveVersion) {
-            // If the periodData points to a different version (or none), update it
-            if (periodData.planVersionId !== effectiveVersion.id) {
-                await prisma.userPeriodData.update({
-                    where: { id: periodData.id },
-                    data: { planVersionId: effectiveVersion.id }
-                });
-
-                // Use the new version for calculation
-                planVersion = {
-                    ...effectiveVersion,
-                    plan: activeAssignment.plan
-                };
-            }
-        }
+    // If assignment points to a different plan than periodData, update periodData
+    if (activeAssignment && periodData.planId !== activeAssignment.plan.id) {
+        await prisma.userPeriodData.update({
+            where: { id: periodData.id },
+            data: { planId: activeAssignment.plan.id }
+        });
+        plan = activeAssignment.plan;
     }
 
     // --- Proration Logic ---
@@ -169,16 +147,16 @@ export async function calculateCommissions(
     let effectiveQuota = periodData.quota;
     let effectiveOTE = periodData.ote;
     let rampOverride: RampOverrideResult | null = null;
-    let baseRateMultiplierOverride = planVersion?.baseRateMultiplier ?? 1.0;
-    let acceleratorsEnabledOverride = planVersion?.acceleratorsEnabled ?? true;
-    let kickersEnabledOverride = planVersion?.kickersEnabled ?? false;
-    let guaranteedDrawAmount = 0;
+    let baseRateMultiplierOverride = plan?.baseRateMultiplier ?? 1.0;
+    let acceleratorsEnabledOverride = plan?.acceleratorsEnabled ?? true;
+    let kickersEnabledOverride = plan?.kickersEnabled ?? false;
+    let guaranteedDrawPercent = 0;
 
     // Check ramp only if we have an assignment start date
-    if (activeAssignment && activeAssignment.startDate && planVersion) {
-        // Fetch steps explicitly to avoid include issues or type mismatches
+    if (activeAssignment && activeAssignment.startDate && plan) {
+        // Fetch steps explicitly
         const steps = await prisma.rampStep.findMany({
-            where: { planVersionId: planVersion.id }
+            where: { planId: plan.id }
         });
 
         const rampStepsConfig = steps.map(s => ({
@@ -200,8 +178,8 @@ export async function calculateCommissions(
                 kickersEnabledOverride = false;
             }
 
-            // Set Guaranteed Draw (Pre-proration)
-            guaranteedDrawAmount = rampOverride.guaranteedDraw;
+            // Set Guaranteed Draw Percent
+            guaranteedDrawPercent = rampOverride.guaranteedDrawPercent;
         }
     }
 
@@ -209,7 +187,10 @@ export async function calculateCommissions(
     // Quota and OTE are prorated. Effective Rate remains constant (as it's a ratio).
     const proratedQuota = effectiveQuota * prorationFactor;
     const proratedOTE = effectiveOTE * prorationFactor;
-    const proratedDraw = guaranteedDrawAmount * prorationFactor;
+    // Calculate guaranteed draw as % of FULL (un-ramped) variable bonus, then prorate
+    // The draw guarantees income based on the full plan variable component, not the reduced ramp target
+    const fullVariableBonus = periodData.ote - periodData.baseSalary;
+    const proratedDraw = guaranteedDrawPercent > 0 ? (guaranteedDrawPercent / 100) * fullVariableBonus * prorationFactor : 0;
 
     // Fetch all APPROVED orders within the date range
     const orders = await prisma.order.findMany({
@@ -230,15 +211,14 @@ export async function calculateCommissions(
     // Calculate attainment percentage against PRORATED quota
     const attainmentPercent = (totalRevenue / proratedQuota) * 100;
 
-    // Get plan config from VERSION
-    // planVersion is already set above
-    const baseRateMultiplier = baseRateMultiplierOverride; // Use override
-    const acceleratorsEnabled = acceleratorsEnabledOverride; // Use override
-    const kickersEnabled = kickersEnabledOverride; // Use override
+    // Get plan config
+    const baseRateMultiplier = baseRateMultiplierOverride;
+    const acceleratorsEnabled = acceleratorsEnabledOverride;
+    const kickersEnabled = kickersEnabledOverride;
 
     // Calculate base + accelerator commission
     const acceleratorConfig = acceleratorsEnabled
-        ? (planVersion?.accelerators as AcceleratorConfig | null)
+        ? (plan?.accelerators as AcceleratorConfig | null)
         : null;
 
     const { commissionEarned: baseCommissionEarned, breakdown } = calculateCommissionWithAccelerators(
@@ -250,7 +230,7 @@ export async function calculateCommissions(
     );
 
     // Calculate kickers (using Prorated OTE)
-    const kickerConfig = planVersion?.kickers as KickerConfig | null;
+    const kickerConfig = plan?.kickers as KickerConfig | null;
     const { kickerAmount, kickersApplied } = calculateKickers(
         attainmentPercent,
         proratedOTE, // Use Prorated OTE for kicker value calculation
@@ -277,7 +257,8 @@ export async function calculateCommissions(
             monthIndex: rampOverride.monthIndex ?? 0,
             originalQuota: periodData.quota,
             rampedQuotaPreProration: effectiveQuota,
-            guaranteedDraw: proratedDraw,
+            guaranteedDrawPercent: guaranteedDrawPercent,
+            guaranteedDrawAmount: proratedDraw,
             drawTopUp
         };
     }
@@ -294,7 +275,7 @@ export async function calculateCommissions(
         periodData: {
             quota: proratedQuota, // Return the actually used (prorated) quota
             effectiveRate: periodData.effectiveRate,
-            planName: planVersion?.plan.name ?? null,
+            planName: plan?.name ?? null,
             ote: proratedOTE, // Return the actually used (prorated) OTE
             baseSalary: periodData.baseSalary, // Base typically passed through, effectively prorated if we calculated payout
         },

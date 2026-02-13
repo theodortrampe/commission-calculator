@@ -4,6 +4,7 @@ import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { CURRENT_ORG_ID } from "@/lib/constants";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
     adapter: PrismaAdapter(prisma),
@@ -27,7 +28,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 }
 
                 const user = await prisma.user.findUnique({
-                    where: { email: credentials.email as string },
+                    where: { email_organizationId: { email: credentials.email as string, organizationId: CURRENT_ORG_ID } },
                 });
 
                 if (!user || !user.passwordHash) {
@@ -73,7 +74,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             // For OAuth: link account to existing user by email or create new
             if (account?.provider === "google") {
                 const existingUser = await prisma.user.findUnique({
-                    where: { email: user.email! },
+                    where: { email_organizationId: { email: user.email!, organizationId: CURRENT_ORG_ID } },
                 });
 
                 if (existingUser) {

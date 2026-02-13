@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { CURRENT_ORG_ID } from "@/lib/constants";
 import { calculateCommissions, CommissionResult } from "@/lib/utils/calculateCommissions";
 import { Payout, PayoutStatus, User, Adjustment, AdjustmentType } from "@prisma/client";
 
@@ -53,6 +54,7 @@ export async function createAdjustment(
             prisma.adjustment.create({
                 data: {
                     userId: payout.userId,
+                    organizationId: payout.organizationId,
                     payoutId: payoutId,
                     month: payout.periodStart,
                     amount,
@@ -139,6 +141,7 @@ export async function getAllUserEarnings(month: Date): Promise<UserEarningsSumma
     const users = await prisma.user.findMany({
         where: {
             role: "REP",
+            organizationId: CURRENT_ORG_ID,
         },
         orderBy: {
             name: "asc",
@@ -238,7 +241,7 @@ export async function generateBulkPayouts(
     try {
         // Get all REP users
         const users = await prisma.user.findMany({
-            where: { role: "REP" },
+            where: { role: "REP", organizationId: CURRENT_ORG_ID },
         });
 
         for (const user of users) {
@@ -288,6 +291,7 @@ export async function generateBulkPayouts(
                 const payout = await prisma.payout.create({
                     data: {
                         userId: user.id,
+                        organizationId: CURRENT_ORG_ID,
                         periodStart: startDate,
                         periodEnd: endDate,
                         grossEarnings: commission.commissionEarned,
@@ -335,6 +339,7 @@ export async function publishBulkPayouts(
     try {
         const result = await prisma.payout.updateMany({
             where: {
+                organizationId: CURRENT_ORG_ID,
                 periodStart: startDate,
                 periodEnd: endDate,
                 status: PayoutStatus.DRAFT,
@@ -375,6 +380,7 @@ export async function createUserAdjustment(
         await prisma.adjustment.create({
             data: {
                 userId,
+                organizationId: CURRENT_ORG_ID,
                 month: periodMonth,
                 amount,
                 reason,

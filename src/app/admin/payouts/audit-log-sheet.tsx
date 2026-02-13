@@ -206,7 +206,7 @@ export function AuditLogSheet({ item, open, onOpenChange }: AuditLogSheetProps) 
                     </div>
 
                     {/* 4. Draw Logic (if applicable) */}
-                    {isRamped && (commission.ramp?.guaranteedDraw ?? 0) > 0 && (
+                    {isRamped && (commission.ramp?.guaranteedDrawAmount ?? 0) > 0 && (
                         <div>
                             <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
                                 Guaranteed Draw
@@ -214,7 +214,7 @@ export function AuditLogSheet({ item, open, onOpenChange }: AuditLogSheetProps) 
                             <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-3 space-y-1">
                                 <AuditRow
                                     label="Guaranteed Draw (prorated)"
-                                    value={formatCurrency(commission.ramp!.guaranteedDraw)}
+                                    value={formatCurrency(commission.ramp!.guaranteedDrawAmount)}
                                 />
                                 {hasDrawTopUp && (
                                     <>

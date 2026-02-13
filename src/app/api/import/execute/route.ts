@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { CURRENT_ORG_ID } from "@/lib/constants";
 import { Role, OrderStatus } from "@prisma/client";
 
 interface ColumnMapping {
@@ -69,16 +70,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         };
 
         if (dataType === "compensation") {
-            // Get default plan and its latest version
+            // Get default plan
             const defaultPlan = await prisma.compPlan.findFirst({
-                include: {
-                    versions: {
-                        orderBy: { effectiveFrom: "desc" },
-                        take: 1,
-                    },
-                },
+                where: { organizationId: CURRENT_ORG_ID },
             });
-            const defaultVersionId = defaultPlan?.versions[0]?.id ?? null;
+            const defaultPlanId = defaultPlan?.id ?? null;
 
             for (let i = 0; i < rows.length; i++) {
                 try {
@@ -119,11 +115,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
                     // Upsert user
                     const user = await prisma.user.upsert({
-                        where: { email },
+                        where: { email_organizationId: { email, organizationId: CURRENT_ORG_ID } },
                         create: {
                             email,
                             name: name || email.split("@")[0],
                             role: ["ADMIN", "REP", "MANAGER"].includes(role) ? role : Role.REP,
+                            organizationId: CURRENT_ORG_ID,
                         },
                         update: {
                             name: name || undefined,
@@ -146,7 +143,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                             baseSalary,
                             ote,
                             effectiveRate,
-                            planVersionId: defaultVersionId,
+                            planId: defaultPlanId,
                         },
                         update: {
                             title: title || undefined,
@@ -203,7 +200,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
                     // Find user
                     const user = await prisma.user.findUnique({
-                        where: { email: userEmail },
+                        where: { email_organizationId: { email: userEmail, organizationId: CURRENT_ORG_ID } },
                     });
 
                     if (!user) {
@@ -233,6 +230,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                             status,
                             bookingDate,
                             userId: user.id,
+                            organizationId: CURRENT_ORG_ID,
                         },
                         update: {
                             convertedUsd,

@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { CURRENT_ORG_ID } from "@/lib/constants";
 import { Order, User, OrderStatus } from "@prisma/client";
 
 export interface OrderWithUser extends Order {
@@ -18,7 +19,7 @@ export interface OrderFilters {
  * Get all orders with optional filters
  */
 export async function getAllOrders(filters: OrderFilters = {}): Promise<OrderWithUser[]> {
-    const where: Record<string, unknown> = {};
+    const where: Record<string, unknown> = { organizationId: CURRENT_ORG_ID };
 
     if (filters.userId) {
         where.userId = filters.userId;
@@ -70,7 +71,7 @@ export async function getOrderById(orderId: string): Promise<OrderWithUser | nul
  */
 export async function getAllReps(): Promise<Pick<User, "id" | "name">[]> {
     const users = await prisma.user.findMany({
-        where: { role: "REP" },
+        where: { role: "REP", organizationId: CURRENT_ORG_ID },
         select: { id: true, name: true },
         orderBy: { name: "asc" },
     });
@@ -82,6 +83,7 @@ export async function getAllReps(): Promise<Pick<User, "id" | "name">[]> {
  */
 export async function getOrderMonths(): Promise<Date[]> {
     const orders = await prisma.order.findMany({
+        where: { organizationId: CURRENT_ORG_ID },
         select: { bookingDate: true },
         distinct: ["bookingDate"],
         orderBy: { bookingDate: "desc" },

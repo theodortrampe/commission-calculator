@@ -1,8 +1,7 @@
 
 "use client";
 
-import { format } from "date-fns";
-import { Users, FileText, Calendar } from "lucide-react";
+import { Users } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -42,8 +41,6 @@ export function PlansClient({ plans }: PlansClientProps) {
                         <TableRow>
                             <TableHead className="w-[300px]">Plan Name</TableHead>
                             <TableHead>Frequency</TableHead>
-                            <TableHead>Latest Version</TableHead>
-                            <TableHead className="text-center">Versions</TableHead>
                             <TableHead className="text-center">Active Assignments</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
@@ -51,7 +48,7 @@ export function PlansClient({ plans }: PlansClientProps) {
                     <TableBody>
                         {plans.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                                <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
                                     No compensation plans found. Create one to get started.
                                 </TableCell>
                             </TableRow>
@@ -72,22 +69,6 @@ export function PlansClient({ plans }: PlansClientProps) {
                                         <Badge variant="outline" className="capitalize">
                                             {plan.frequency.toLowerCase()}
                                         </Badge>
-                                    </TableCell>
-                                    <TableCell>
-                                        {plan.latestVersion ? (
-                                            <div className="flex items-center text-sm text-muted-foreground">
-                                                <Calendar className="mr-2 h-4 w-4" />
-                                                Effective {format(new Date(plan.latestVersion.effectiveFrom), "MMM d, yyyy")}
-                                            </div>
-                                        ) : (
-                                            <span className="text-muted-foreground text-sm">No versions</span>
-                                        )}
-                                    </TableCell>
-                                    <TableCell className="text-center">
-                                        <div className="flex items-center justify-center gap-1">
-                                            <FileText className="h-4 w-4 text-muted-foreground" />
-                                            <span>{plan._count.versions}</span>
-                                        </div>
                                     </TableCell>
                                     <TableCell className="text-center">
                                         <div className="flex items-center justify-center gap-1">
