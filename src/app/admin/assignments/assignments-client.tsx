@@ -3,7 +3,7 @@
 
 import { useTransition } from "react";
 import { format } from "date-fns";
-import { Users, User, Trash2, Calendar, Shield } from "lucide-react";
+import { Users, User, Trash2, Calendar, Shield, Lock, CalendarOff, AlertTriangle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -15,9 +15,16 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 
-import { AssignmentWithDetails, deleteAssignment } from "./actions";
+import { AssignmentWithDetails, deleteAssignment, endAssignment } from "./actions";
 import { NewAssignmentDialog } from "./new-assignment-dialog";
+import { EditAssignmentDialog } from "./edit-assignment-dialog";
 import { Role } from "@prisma/client";
 
 interface AssignmentsClientProps {
@@ -33,6 +40,14 @@ export function AssignmentsClient({ assignments, users, plans }: AssignmentsClie
         if (confirm("Are you sure you want to delete this assignment?")) {
             startTransition(async () => {
                 await deleteAssignment(id);
+            });
+        }
+    };
+
+    const handleEnd = (id: string) => {
+        if (confirm("End this assignment at the end of the current month?")) {
+            startTransition(async () => {
+                await endAssignment(id);
             });
         }
     };
@@ -126,20 +141,77 @@ export function AssignmentsClient({ assignments, users, plans }: AssignmentsClie
                                             )}
                                         </TableCell>
                                         <TableCell className="text-center">
-                                            <Badge variant="outline" className={statusColor}>
-                                                {status}
-                                            </Badge>
+                                            <div className="flex items-center justify-center gap-1.5">
+                                                <Badge variant="outline" className={statusColor}>
+                                                    {status}
+                                                </Badge>
+                                                {assignment.isOverlapping && (
+                                                    <TooltipProvider>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                <p>Overlapping with another assignment for this user</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
+                                                )}
+                                            </div>
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => handleDelete(assignment.id)}
-                                                disabled={isPending}
-                                                className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
+                                            {assignment.isLocked ? (
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <div className="inline-flex items-center gap-1.5 text-amber-600 cursor-default">
+                                                                <Lock className="h-4 w-4" />
+                                                                <span className="text-xs font-medium">Locked</span>
+                                                            </div>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p>Payouts have been published for this period</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                            ) : (
+                                                <div className="flex justify-end gap-1">
+                                                    <EditAssignmentDialog
+                                                        assignment={assignment}
+                                                        users={users}
+                                                        plans={plans}
+                                                    />
+                                                    {!assignment.endDate && status === "Active" && (
+                                                        <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        onClick={() => handleEnd(assignment.id)}
+                                                                        disabled={isPending}
+                                                                        className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                                                    >
+                                                                        <CalendarOff className="h-4 w-4" />
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    <p>End assignment at end of this month</p>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
+                                                    )}
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => handleDelete(assignment.id)}
+                                                        disabled={isPending}
+                                                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            )}
                                         </TableCell>
                                     </TableRow>
                                 );

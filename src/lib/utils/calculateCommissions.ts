@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import { OrderStatus } from "@prisma/client";
 import {
     calculateCommissionWithAccelerators,
     calculateKickers,
@@ -25,7 +24,7 @@ export interface CalculateCommissionsInput {
  * 
  * Logic:
  * 1. Fetches UserPeriodData for the relevant month to get effectiveRate and quota
- * 2. Fetches all APPROVED orders for the user within the date range
+ * 2. Fetches all orders for the user within the date range
  * 3. Calculates Total Revenue (sum of convertedUsd)
  * 4. Calculates Attainment % (Revenue / Quota)
  * 5. Calculates Commission:
@@ -192,11 +191,10 @@ export async function calculateCommissions(
     const fullVariableBonus = periodData.ote - periodData.baseSalary;
     const proratedDraw = guaranteedDrawPercent > 0 ? (guaranteedDrawPercent / 100) * fullVariableBonus * prorationFactor : 0;
 
-    // Fetch all APPROVED orders within the date range
+    // Fetch all orders within the date range
     const orders = await prisma.order.findMany({
         where: {
             userId,
-            status: OrderStatus.APPROVED,
             bookingDate: {
                 gte: startDate,
                 lte: endDate,

@@ -1,7 +1,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { calculateCommissions } from "./calculateCommissions";
-import { PayoutFreq, OrderStatus, Role } from "@prisma/client";
+import { PayoutFreq, Role } from "@prisma/client";
 import { CURRENT_ORG_ID } from "@/lib/constants";
 
 // Increase timeout for DB operations
@@ -95,7 +95,6 @@ describe("calculateCommissions Integration Test", () => {
                 organizationId: CURRENT_ORG_ID,
                 orderNumber: "ORD-002",
                 bookingDate: testMonth,
-                status: OrderStatus.APPROVED,
                 convertedUsd: 1000,
                 convertedEur: 900,
             }
@@ -149,7 +148,6 @@ describe("calculateCommissions Integration Test", () => {
                 organizationId: CURRENT_ORG_ID,
                 orderNumber: "ORD-001",
                 bookingDate: testMonth,
-                status: OrderStatus.APPROVED,
                 convertedUsd: 1000,
                 convertedEur: 900,
             }
@@ -207,7 +205,6 @@ describe("calculateCommissions Integration Test", () => {
                 organizationId: CURRENT_ORG_ID,
                 orderNumber: "ORD-PRORATED",
                 bookingDate: new Date(Date.UTC(2025, 0, 20)), // Inside active period
-                status: OrderStatus.APPROVED,
                 convertedUsd: 6000,
                 convertedEur: 5400,
             }
@@ -288,7 +285,6 @@ describe("calculateCommissions Integration Test", () => {
                 organizationId: CURRENT_ORG_ID,
                 orderNumber: "ORD-RAMP-1",
                 bookingDate: new Date(Date.UTC(2025, 0, 15)),
-                status: OrderStatus.APPROVED,
                 convertedUsd: 1000,
                 convertedEur: 900,
             }
@@ -430,7 +426,6 @@ describe("calculateCommissions Integration Test", () => {
                 organizationId: CURRENT_ORG_ID,
                 convertedUsd: 8000,
                 convertedEur: 7500,
-                status: 'APPROVED',
                 bookingDate: new Date('2025-01-15T00:00:00Z')
             }
         });

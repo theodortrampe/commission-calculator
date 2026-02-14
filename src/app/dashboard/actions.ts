@@ -35,7 +35,7 @@ export async function getDashboardData(
         endDate,
     });
 
-    // Fetch orders for this month (all statuses for display)
+    // Fetch orders for this month
     const orders = await prisma.order.findMany({
         where: {
             userId,

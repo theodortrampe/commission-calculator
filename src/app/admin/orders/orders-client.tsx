@@ -22,7 +22,6 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import { OrderWithUser, getAllOrders } from "./actions";
@@ -32,13 +31,6 @@ interface OrdersClientProps {
     reps: { id: string; name: string }[];
     months: Date[];
 }
-
-const statusColors = {
-    APPROVED: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-    PENDING: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-    DRAFT: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200",
-    CANCELLED: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-};
 
 export function OrdersClient({ initialOrders, reps, months }: OrdersClientProps) {
     const [orders, setOrders] = useState<OrderWithUser[]>(initialOrders);
@@ -143,13 +135,12 @@ export function OrdersClient({ initialOrders, reps, months }: OrdersClientProps)
                                 <TableHead>Rep</TableHead>
                                 <TableHead>Amount (USD)</TableHead>
                                 <TableHead>Booking Date</TableHead>
-                                <TableHead>Status</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {orders.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                                    <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
                                         No orders found
                                     </TableCell>
                                 </TableRow>
@@ -170,11 +161,6 @@ export function OrdersClient({ initialOrders, reps, months }: OrdersClientProps)
                                         </TableCell>
                                         <TableCell>
                                             {format(order.bookingDate, "MMM d, yyyy")}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge className={statusColors[order.status]}>
-                                                {order.status}
-                                            </Badge>
                                         </TableCell>
                                     </TableRow>
                                 ))

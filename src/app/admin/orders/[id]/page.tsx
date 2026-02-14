@@ -4,17 +4,9 @@ import { format } from "date-fns";
 import { ArrowLeft } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { getOrderById } from "../actions";
 
 export const dynamic = "force-dynamic";
-
-const statusColors = {
-    APPROVED: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-    PENDING: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-    DRAFT: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200",
-    CANCELLED: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-};
 
 interface Props {
     params: Promise<{ id: string }>;
@@ -43,9 +35,6 @@ export default async function OrderDetailPage({ params }: Props) {
                         <h1 className="text-3xl font-bold tracking-tight">
                             Order {order.orderNumber}
                         </h1>
-                        <Badge className={statusColors[order.status]}>
-                            {order.status}
-                        </Badge>
                     </div>
                     <p className="text-muted-foreground">
                         Booked on {format(order.bookingDate, "MMMM d, yyyy")}
@@ -64,12 +53,6 @@ export default async function OrderDetailPage({ params }: Props) {
                             <div>
                                 <p className="text-sm text-muted-foreground">Order Number</p>
                                 <p className="font-mono font-medium">{order.orderNumber}</p>
-                            </div>
-                            <div>
-                                <p className="text-sm text-muted-foreground">Status</p>
-                                <Badge className={statusColors[order.status]}>
-                                    {order.status}
-                                </Badge>
                             </div>
                             <div>
                                 <p className="text-sm text-muted-foreground">Booking Date</p>

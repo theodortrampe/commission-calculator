@@ -145,13 +145,6 @@ model UserPeriodData {
 // 3. ORDERS
 // --------------------------------------
 
-enum OrderStatus {
-  APPROVED
-  PENDING
-  DRAFT
-  CANCELLED
-}
-
 model Order {
   id             String      @id @default(uuid())
   orderNumber    String      @unique 
@@ -160,7 +153,6 @@ model Order {
   convertedUsd   Float
   convertedEur   Float
   
-  status         OrderStatus
   bookingDate    DateTime    
 
   // Multi-tenancy

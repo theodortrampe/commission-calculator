@@ -1,6 +1,6 @@
 "use client";
 
-import { Order, OrderStatus } from "@prisma/client";
+import { Order } from "@prisma/client";
 import { format } from "date-fns";
 import {
     Table,
@@ -10,18 +10,10 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 
 interface OrdersTableProps {
     orders: Order[];
 }
-
-const statusColors: Record<OrderStatus, string> = {
-    APPROVED: "bg-foreground text-background border-transparent",
-    PENDING: "bg-transparent text-muted-foreground border-border",
-    DRAFT: "bg-transparent text-muted-foreground border-border",
-    CANCELLED: "bg-transparent text-muted-foreground border-border line-through",
-};
 
 function formatCurrency(amount: number): string {
     return new Intl.NumberFormat("en-US", {
@@ -50,7 +42,6 @@ export function OrdersTable({ orders }: OrdersTableProps) {
                         <TableHead>Booking Date</TableHead>
                         <TableHead className="text-right">Amount (USD)</TableHead>
                         <TableHead className="text-right">Amount (EUR)</TableHead>
-                        <TableHead className="text-center">Status</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -63,11 +54,6 @@ export function OrdersTable({ orders }: OrdersTableProps) {
                             </TableCell>
                             <TableCell className="text-right font-mono text-muted-foreground">
                                 €{order.convertedEur.toLocaleString()}
-                            </TableCell>
-                            <TableCell className="text-center">
-                                <Badge variant="outline" className={statusColors[order.status]}>
-                                    {order.status}
-                                </Badge>
                             </TableCell>
                         </TableRow>
                     ))}

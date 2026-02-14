@@ -55,12 +55,6 @@ export default async function AdminLayout({
                                 Assignments
                             </Link>
                             <Link
-                                href="/admin/settings"
-                                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-                            >
-                                Settings
-                            </Link>
-                            <Link
                                 href="/admin/data-import"
                                 className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
                             >

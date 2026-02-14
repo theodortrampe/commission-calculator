@@ -6,7 +6,7 @@ A Next.js application for managing sales rep commission calculations, payouts, a
 
 ### Rep Dashboard (`/dashboard`)
 - View real-time earnings and quota attainment
-- Track orders by status (Approved, Pending, Draft, Cancelled)
+- Track booked orders and revenue by month
 - Month-by-month performance comparison
 - Stats cards showing current month earnings, % to quota, effective quota, and draw top-up info
 - **Commission Math Explainer** — visual breakdown of how commissions were calculated, including ramp/proration badges and draw adjustments
@@ -34,11 +34,13 @@ A Next.js application for managing sales rep commission calculations, payouts, a
 #### Assignments (`/admin/assignments`)
 - Assign plans to specific Users or Roles (e.g., "All Managers")
 - Date-based assignments (Start/End dates) with automatic proration
+- **Assignment Locking**: Prevents editing/deleting assignments with published payouts
+- **Overlap Warnings**: Visual indicators for overlapping date ranges
+- **End Assignment Quick Action**: One-click action to end an assignment at month's end
 
-#### Admin Settings (`/admin/settings`)
-- Global configuration for default plan logic.
-- **Quota & Rates**: Set default base rate multiplier and monthly quota.
-- **Toggle Logic**: Enable/disable accelerators or kickers globally for default assignments.
+#### Orders (`/admin/orders`)
+- View all booked orders with filtering by rep, month, and search
+- Order detail pages with revenue breakdowns
 
 ### Multi-Tenant Architecture (B2B SaaS Ready)
 - **Hidden Tenant Pattern**: All data (Users, Plans, Orders, Payouts) is scoped by `organizationId`.

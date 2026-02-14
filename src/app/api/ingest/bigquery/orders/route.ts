@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { CURRENT_ORG_ID } from "@/lib/constants";
-import { OrderStatus } from "@prisma/client";
+
 
 /**
  * BigQuery Orders Row Schema
@@ -12,7 +12,6 @@ interface BigQueryOrderRow {
     userEmail: string;
     convertedUsd: number;
     convertedEur?: number;
-    status: "APPROVED" | "PENDING" | "DRAFT" | "CANCELLED";
     bookingDate: string; // ISO date string
 }
 
@@ -86,17 +85,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<IngestRes
             );
         }
 
-        // Map status string to enum
-        const statusMap: Record<string, OrderStatus> = {
-            APPROVED: OrderStatus.APPROVED,
-            PENDING: OrderStatus.PENDING,
-            DRAFT: OrderStatus.DRAFT,
-            CANCELLED: OrderStatus.CANCELLED,
-        };
-
-        const status = statusMap[body.status] ?? OrderStatus.APPROVED;
-
-        // Check if order exists
+        // Upsert order
         const existingOrder = await prisma.order.findUnique({
             where: { orderNumber: body.orderNumber },
         });
@@ -110,7 +99,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<IngestRes
                 data: {
                     convertedUsd: body.convertedUsd,
                     convertedEur: body.convertedEur ?? body.convertedUsd * 0.91,
-                    status,
                     bookingDate,
                     userId: user.id,
                 },
@@ -121,7 +109,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<IngestRes
                     orderNumber: body.orderNumber,
                     convertedUsd: body.convertedUsd,
                     convertedEur: body.convertedEur ?? body.convertedUsd * 0.91,
-                    status,
                     bookingDate,
                     userId: user.id,
                     organizationId: CURRENT_ORG_ID,
@@ -207,14 +194,6 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
                     continue;
                 }
 
-                const statusMap: Record<string, OrderStatus> = {
-                    APPROVED: OrderStatus.APPROVED,
-                    PENDING: OrderStatus.PENDING,
-                    DRAFT: OrderStatus.DRAFT,
-                    CANCELLED: OrderStatus.CANCELLED,
-                };
-                const status = statusMap[row.status] ?? OrderStatus.APPROVED;
-
                 // Upsert order
                 await prisma.order.upsert({
                     where: { orderNumber: row.orderNumber },
@@ -222,7 +201,6 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
                         orderNumber: row.orderNumber,
                         convertedUsd: row.convertedUsd,
                         convertedEur: row.convertedEur ?? row.convertedUsd * 0.91,
-                        status,
                         bookingDate,
                         userId: user.id,
                         organizationId: CURRENT_ORG_ID,
@@ -230,7 +208,6 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
                     update: {
                         convertedUsd: row.convertedUsd,
                         convertedEur: row.convertedEur ?? row.convertedUsd * 0.91,
-                        status,
                         bookingDate,
                         userId: user.id,
                     },

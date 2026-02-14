@@ -195,3 +195,34 @@ One-time script to verify `bcryptjs` and `PrismaClient` can be loaded.
 
 ## Removed Directories
 - `scripts/` — Empty after deleting `reset-admin.js`
+
+---
+
+# Cleanup — Feb 13, 2026
+
+## Order Status Removal
+
+Removed the `OrderStatus` enum and `status` column from orders entirely. All imported orders are now treated as approved.
+
+### Schema Changes
+- Removed `OrderStatus` enum (`APPROVED`, `PENDING`, `DRAFT`, `CANCELLED`)
+- Removed `status` field from `Order` model
+- Migration: `20260214015456_remove_order_status`
+
+### Files Updated (12 files)
+
+| File | Change |
+|------|--------|
+| `prisma/schema.prisma` | Removed enum + field |
+| `prisma/seed.ts` | Removed `OrderStatus` import and status from all 20 seed orders |
+| `src/lib/utils/calculateCommissions.ts` | Removed `APPROVED` filter — all orders count |
+| `src/lib/utils/calculateCommissions.test.ts` | Removed `OrderStatus` from import + 6 test fixtures |
+| `src/app/api/import/execute/route.ts` | Removed status mapping from CSV import |
+| `src/app/api/ingest/bigquery/orders/route.ts` | Removed status from interface + DB operations |
+| `src/app/admin/orders/actions.ts` | Removed status from `OrderFilters` type + query |
+| `src/app/admin/orders/orders-client.tsx` | Removed status column, Badge, statusColors |
+| `src/app/admin/orders/[id]/page.tsx` | Removed status badges from detail view |
+| `src/components/dashboard/orders-table.tsx` | Removed status column and Badge |
+| `src/app/dashboard/actions.ts` | Updated stale "all statuses" comment |
+| `src/app/admin/layout.tsx` | Removed then re-added Orders nav link per user preference |
+

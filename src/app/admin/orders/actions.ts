@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { CURRENT_ORG_ID } from "@/lib/constants";
-import { Order, User, OrderStatus } from "@prisma/client";
+import { Order, User } from "@prisma/client";
 
 export interface OrderWithUser extends Order {
     user: User;
@@ -12,7 +12,6 @@ export interface OrderFilters {
     userId?: string;
     month?: Date;
     search?: string;
-    status?: OrderStatus;
 }
 
 /**
@@ -23,10 +22,6 @@ export async function getAllOrders(filters: OrderFilters = {}): Promise<OrderWit
 
     if (filters.userId) {
         where.userId = filters.userId;
-    }
-
-    if (filters.status) {
-        where.status = filters.status;
     }
 
     if (filters.month) {

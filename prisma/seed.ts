@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { PrismaClient, Role, OrderStatus, PayoutFreq } from "@prisma/client";
+import { PrismaClient, Role, PayoutFreq } from "@prisma/client";
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 
 import bcrypt from "bcryptjs";
@@ -182,11 +182,11 @@ async function main() {
 
     // Orders for John Doe - Current Month
     const johnCurrentOrders = [
-        { orderNumber: "ORD-2026-001", convertedUsd: 45000, convertedEur: 41000, status: OrderStatus.APPROVED },
-        { orderNumber: "ORD-2026-002", convertedUsd: 32000, convertedEur: 29000, status: OrderStatus.APPROVED },
-        { orderNumber: "ORD-2026-003", convertedUsd: 28000, convertedEur: 25500, status: OrderStatus.PENDING },
-        { orderNumber: "ORD-2026-004", convertedUsd: 55000, convertedEur: 50000, status: OrderStatus.APPROVED },
-        { orderNumber: "ORD-2026-005", convertedUsd: 18000, convertedEur: 16400, status: OrderStatus.PENDING },
+        { orderNumber: "ORD-2026-001", convertedUsd: 45000, convertedEur: 41000 },
+        { orderNumber: "ORD-2026-002", convertedUsd: 32000, convertedEur: 29000 },
+        { orderNumber: "ORD-2026-003", convertedUsd: 28000, convertedEur: 25500 },
+        { orderNumber: "ORD-2026-004", convertedUsd: 55000, convertedEur: 50000 },
+        { orderNumber: "ORD-2026-005", convertedUsd: 18000, convertedEur: 16400 },
     ];
 
     for (const order of johnCurrentOrders) {
@@ -203,11 +203,11 @@ async function main() {
 
     // Orders for John Doe - Last Month
     const johnLastOrders = [
-        { orderNumber: "ORD-2026-006", convertedUsd: 38000, convertedEur: 34600, status: OrderStatus.APPROVED },
-        { orderNumber: "ORD-2026-007", convertedUsd: 42000, convertedEur: 38200, status: OrderStatus.APPROVED },
-        { orderNumber: "ORD-2026-008", convertedUsd: 25000, convertedEur: 22750, status: OrderStatus.APPROVED },
-        { orderNumber: "ORD-2026-009", convertedUsd: 31000, convertedEur: 28200, status: OrderStatus.PENDING },
-        { orderNumber: "ORD-2026-010", convertedUsd: 48000, convertedEur: 43680, status: OrderStatus.APPROVED },
+        { orderNumber: "ORD-2026-006", convertedUsd: 38000, convertedEur: 34600 },
+        { orderNumber: "ORD-2026-007", convertedUsd: 42000, convertedEur: 38200 },
+        { orderNumber: "ORD-2026-008", convertedUsd: 25000, convertedEur: 22750 },
+        { orderNumber: "ORD-2026-009", convertedUsd: 31000, convertedEur: 28200 },
+        { orderNumber: "ORD-2026-010", convertedUsd: 48000, convertedEur: 43680 },
     ];
 
     for (const order of johnLastOrders) {
@@ -224,11 +224,11 @@ async function main() {
 
     // Orders for Jane Smith - Current Month
     const janeCurrentOrders = [
-        { orderNumber: "ORD-2026-011", convertedUsd: 35000, convertedEur: 31850, status: OrderStatus.APPROVED },
-        { orderNumber: "ORD-2026-012", convertedUsd: 42000, convertedEur: 38220, status: OrderStatus.APPROVED },
-        { orderNumber: "ORD-2026-013", convertedUsd: 18000, convertedEur: 16380, status: OrderStatus.PENDING },
-        { orderNumber: "ORD-2026-014", convertedUsd: 48000, convertedEur: 43680, status: OrderStatus.APPROVED },
-        { orderNumber: "ORD-2026-015", convertedUsd: 12000, convertedEur: 10920, status: OrderStatus.PENDING },
+        { orderNumber: "ORD-2026-011", convertedUsd: 35000, convertedEur: 31850 },
+        { orderNumber: "ORD-2026-012", convertedUsd: 42000, convertedEur: 38220 },
+        { orderNumber: "ORD-2026-013", convertedUsd: 18000, convertedEur: 16380 },
+        { orderNumber: "ORD-2026-014", convertedUsd: 48000, convertedEur: 43680 },
+        { orderNumber: "ORD-2026-015", convertedUsd: 12000, convertedEur: 10920 },
     ];
 
     for (const order of janeCurrentOrders) {
@@ -245,11 +245,11 @@ async function main() {
 
     // Orders for Jane Smith - Last Month
     const janeLastOrders = [
-        { orderNumber: "ORD-2026-016", convertedUsd: 28000, convertedEur: 25480, status: OrderStatus.APPROVED },
-        { orderNumber: "ORD-2026-017", convertedUsd: 19000, convertedEur: 17290, status: OrderStatus.APPROVED },
-        { orderNumber: "ORD-2026-018", convertedUsd: 33000, convertedEur: 30030, status: OrderStatus.APPROVED },
-        { orderNumber: "ORD-2026-019", convertedUsd: 15000, convertedEur: 13650, status: OrderStatus.PENDING },
-        { orderNumber: "ORD-2026-020", convertedUsd: 24000, convertedEur: 21840, status: OrderStatus.APPROVED },
+        { orderNumber: "ORD-2026-016", convertedUsd: 28000, convertedEur: 25480 },
+        { orderNumber: "ORD-2026-017", convertedUsd: 19000, convertedEur: 17290 },
+        { orderNumber: "ORD-2026-018", convertedUsd: 33000, convertedEur: 30030 },
+        { orderNumber: "ORD-2026-019", convertedUsd: 15000, convertedEur: 13650 },
+        { orderNumber: "ORD-2026-020", convertedUsd: 24000, convertedEur: 21840 },
     ];
 
     for (const order of janeLastOrders) {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { CURRENT_ORG_ID } from "@/lib/constants";
-import { Role, OrderStatus } from "@prisma/client";
+import { Role } from "@prisma/client";
 
 interface ColumnMapping {
     [expectedColumn: string]: string;
@@ -28,7 +28,6 @@ interface OrderData {
     userEmail: string;
     convertedUsd: number;
     convertedEur?: number;
-    status?: string;
     bookingDate: string;
 }
 
@@ -174,7 +173,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                     const convertedEur = getValue(row, "convertedEur")
                         ? Number(getValue(row, "convertedEur"))
                         : convertedUsd * 0.91;
-                    const statusStr = String(getValue(row, "status") || "APPROVED").toUpperCase();
                     const bookingDateStr = String(getValue(row, "bookingDate") || "").trim();
 
                     if (!orderNumber) {
@@ -212,14 +210,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                         continue;
                     }
 
-                    const statusMap: Record<string, OrderStatus> = {
-                        APPROVED: OrderStatus.APPROVED,
-                        PENDING: OrderStatus.PENDING,
-                        DRAFT: OrderStatus.DRAFT,
-                        CANCELLED: OrderStatus.CANCELLED,
-                    };
-                    const status = statusMap[statusStr] ?? OrderStatus.APPROVED;
-
                     // Upsert order
                     await prisma.order.upsert({
                         where: { orderNumber },
@@ -227,7 +217,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                             orderNumber,
                             convertedUsd,
                             convertedEur,
-                            status,
                             bookingDate,
                             userId: user.id,
                             organizationId: CURRENT_ORG_ID,
@@ -235,7 +224,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                         update: {
                             convertedUsd,
                             convertedEur,
-                            status,
                             bookingDate,
                             userId: user.id,
                         },
