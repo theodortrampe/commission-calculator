@@ -10,6 +10,7 @@ A Next.js application for managing sales rep commission calculations, payouts, a
 - Month-by-month performance comparison
 - Stats cards showing current month earnings, % to quota, effective quota, and draw top-up info
 - **Commission Math Explainer** — visual breakdown of how commissions were calculated, including ramp/proration badges and draw adjustments
+- **Per-agent currency** — all monetary values display in the agent's configured currency (EUR or USD)
 
 ### Admin Panel
 #### Payouts (`/admin/payouts`)
@@ -38,6 +39,12 @@ A Next.js application for managing sales rep commission calculations, payouts, a
 - **Overlap Warnings**: Visual indicators for overlapping date ranges
 - **End Assignment Quick Action**: One-click action to end an assignment at month's end
 
+#### Data Import (`/admin/data-import`)
+- **CSV / Excel upload** with automatic column detection and mapping
+- **Expected Columns reference** — shows required/optional fields with descriptions before upload
+- **BigQuery SQL integration** — sample queries and JSON payload examples
+- Supports optional `currency` field (EUR/USD, defaults to USD)
+
 #### Orders (`/admin/orders`)
 - View all booked orders with filtering by rep, month, and search
 - Order detail pages with revenue breakdowns
@@ -52,6 +59,7 @@ A Next.js application for managing sales rep commission calculations, payouts, a
 - Supports single row (POST) and batch (PUT) operations
 - Automatic user creation and period data upsert
 - Calculates effective commission rate from OTE and quota
+- Accepts optional `currency` field per agent (EUR or USD)
 
 ## Tech Stack
 
@@ -158,7 +166,7 @@ The system calculates commissions using:
 npm test
 ```
 
-Tests cover commission calculation with accelerators, kickers, and edge cases.
+45 tests across 5 suites covering commission calculation (accelerators, kickers, ramp, proration), UI components (`CommissionMathExplainer`, `AuditLogSheet`, `RampConfigurationForm`), and server actions (`saveRampSteps`).
 
 ## Deployment
 
@@ -174,7 +182,7 @@ Tests cover commission calculation with accelerators, kickers, and edge cases.
 - [Project Roadmap & Planning](./PLANNING.md)
 - [Data Import Guide](./docs/data_import_guide.md)
 - [Known Issues](./docs/known_issues.md)
-- [Cleanup Log](./docs/cleanup_log.md)
+- [Changelog](./docs/changelog.md)
 
 ## License
 

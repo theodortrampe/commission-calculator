@@ -24,6 +24,12 @@ The `notifyPayoutPublished` function is a console.log stub. No actual email/Slac
 
 ## Resolved Issues
 
+### ~~Hardcoded Currency Formatting~~ (Resolved Feb 18, 2026)
+All frontend components used hardcoded `$` and `USD` labels regardless of the agent's currency setting. **Resolution**: Created shared `formatCurrency` utility in `src/lib/utils/format.ts` and replaced all hardcoded formatting across 12 UI components. Added `currency` field to `User` model. Calculation engine now selects `convertedEur`/`convertedUsd` based on user preference.
+
+### ~~Plan Config NaN Bug~~ (Resolved Feb 18, 2026)
+Adding a new accelerator tier in `version-editor.tsx` produced `NaN` for the prior tier's max attainment, preventing save. **Resolution**: Fixed `appendTier` logic to correctly set the prior tier's upper bound.
+
 ### ~~Test Coverage for UI Components~~ (Resolved Feb 17, 2026)
 `CommissionMathExplainer`, `AuditLogSheet`, `RampConfigurationForm`, and `saveRampSteps` lacked tests. **Resolution**: Added 4 test files (32 new tests) using `@testing-library/react` for components and mocked Prisma for the server action. Updated Jest config with dual-project setup (node + jsdom). All 45 tests passing.
 
