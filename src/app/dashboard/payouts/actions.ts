@@ -5,6 +5,7 @@ import { Payout, Adjustment } from "@prisma/client";
 
 export interface PayoutWithAdjustments extends Payout {
     adjustments: Adjustment[];
+    user: { currency: string };
 }
 
 /**
@@ -14,6 +15,7 @@ export async function getRepPayouts(userId: string): Promise<PayoutWithAdjustmen
     const payouts = await prisma.payout.findMany({
         where: { userId },
         include: {
+            user: { select: { currency: true } },
             adjustments: {
                 orderBy: { createdAt: "desc" },
             },
@@ -37,6 +39,7 @@ export async function getRepPayoutById(
             userId, // Ensure rep can only see their own payouts
         },
         include: {
+            user: { select: { currency: true } },
             adjustments: {
                 orderBy: { createdAt: "desc" },
             },

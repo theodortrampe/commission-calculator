@@ -15,20 +15,7 @@ The `notifyPayoutPublished` function is a console.log stub. No actual email/Slac
 
 ## Low Priority
 
-### 2. Middleware Deprecation Warning
-```
-⚠ The "middleware" file convention is deprecated. Please use "proxy" instead.
-```
-Next.js 16 has deprecated the `middleware.ts` convention. Should migrate to the new `proxy` convention when time permits.
-
-### 3. Test Coverage for New UI Components
-The following components lack test coverage:
-- `CommissionMathExplainer` — complex conditional rendering
-- `AuditLogSheet` — calculation breakdown display
-- `RampConfigurationForm` — dynamic form with add/remove steps
-- `saveRampSteps` server action — atomic transaction logic
-
-### 4. Multi-Tenancy Hardcoded Org ID
+### 2. Multi-Tenancy Hardcoded Org ID
 **File**: `src/lib/constants.ts`
 
 `CURRENT_ORG_ID` is hardcoded. Should be replaced with dynamic auth-based lookup when multi-tenancy is fully implemented.
@@ -36,6 +23,12 @@ The following components lack test coverage:
 ---
 
 ## Resolved Issues
+
+### ~~Test Coverage for UI Components~~ (Resolved Feb 17, 2026)
+`CommissionMathExplainer`, `AuditLogSheet`, `RampConfigurationForm`, and `saveRampSteps` lacked tests. **Resolution**: Added 4 test files (32 new tests) using `@testing-library/react` for components and mocked Prisma for the server action. Updated Jest config with dual-project setup (node + jsdom). All 45 tests passing.
+
+### ~~Middleware Deprecation Warning~~ (Resolved Feb 17, 2026)
+Next.js 16 deprecated the `middleware.ts` file convention. **Resolution**: Renamed `src/middleware.ts` → `src/proxy.ts` and changed the default export to a named `proxy` export. Build confirms no deprecation warning.
 
 ### ~~Prisma Decimal Handling~~ (Resolved Feb 12, 2026)
 The `guaranteedDraw` field previously used `Decimal` in the Prisma schema, causing type mismatch issues. **Resolution**: Refactored to `guaranteedDrawPercent Float?` — now stores a percentage of variable bonus instead of a fixed dollar amount, eliminating the Decimal precision concern entirely.

@@ -94,6 +94,7 @@ export async function createCompPlan(data: {
 
 export async function updateCompPlan(planId: string, data: {
     baseRateMultiplier: number;
+    frequency: PayoutFreq;
     acceleratorsEnabled: boolean;
     kickersEnabled: boolean;
     accelerators: any;
@@ -103,6 +104,7 @@ export async function updateCompPlan(planId: string, data: {
         where: { id: planId },
         data: {
             baseRateMultiplier: data.baseRateMultiplier,
+            frequency: data.frequency,
             acceleratorsEnabled: data.acceleratorsEnabled,
             kickersEnabled: data.kickersEnabled,
             accelerators: data.accelerators,

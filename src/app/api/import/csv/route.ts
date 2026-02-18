@@ -11,6 +11,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         const formData = await request.formData();
         const file = formData.get("file") as File | null;
         const dataType = formData.get("dataType") as string | null;
+        const compensationMode = (formData.get("compensationMode") as string) || "ote";
 
         if (!file) {
             return NextResponse.json(
@@ -22,6 +23,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         if (!dataType || !["compensation", "orders"].includes(dataType)) {
             return NextResponse.json(
                 { success: false, error: "dataType must be 'compensation' or 'orders'" },
+                { status: 400 }
+            );
+        }
+
+        if (dataType === "compensation" && !["ote", "commissionRate"].includes(compensationMode)) {
+            return NextResponse.json(
+                { success: false, error: "compensationMode must be 'ote' or 'commissionRate'" },
                 { status: 400 }
             );
         }
@@ -49,10 +57,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         const headers = Object.keys(rows[0]);
 
         // Expected columns for each data type
+        // When compensationMode is "commissionRate", swap ote/commissionRate in required/optional
+        const compensationRequired = compensationMode === "commissionRate"
+            ? ["email", "month", "quota", "baseSalary", "commissionRate"]
+            : ["email", "month", "quota", "baseSalary", "ote"];
+        const compensationOptional = compensationMode === "commissionRate"
+            ? ["name", "title", "role", "planId", "ote", "currency"]
+            : ["name", "title", "role", "planId", "commissionRate", "currency"];
+
         const expectedColumns = {
             compensation: {
-                required: ["email", "month", "quota", "baseSalary", "ote"],
-                optional: ["name", "title", "role", "planId"],
+                required: compensationRequired,
+                optional: compensationOptional,
             },
             orders: {
                 required: ["orderNumber", "userEmail", "convertedUsd", "bookingDate"],

@@ -1,7 +1,7 @@
 import { authMiddleware as auth } from "./auth.edge";
 import { NextResponse } from "next/server";
 
-export default auth((req) => {
+const proxy = auth((req) => {
     const { nextUrl } = req;
     const isLoggedIn = !!req.auth;
     const userRole = req.auth?.user?.role;
@@ -33,6 +33,8 @@ export default auth((req) => {
 
     return NextResponse.next();
 });
+
+export { proxy };
 
 export const config = {
     matcher: [

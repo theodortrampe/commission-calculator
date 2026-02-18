@@ -38,19 +38,13 @@ import {
     getPayoutById,
 } from "../actions";
 import { PayoutStatus } from "@prisma/client";
+import { formatCurrency } from "@/lib/utils/format";
 
 interface PayoutDetailClientProps {
     initialData: PayoutWithAdjustments;
 }
 
-function formatCurrency(amount: number): string {
-    return new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: "USD",
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-    }).format(amount);
-}
+
 
 const statusColors: Record<PayoutStatus, string> = {
     DRAFT: "bg-amber-500/15 text-amber-700 border-amber-500/20",
@@ -112,6 +106,7 @@ export function PayoutDetailClient({ initialData }: PayoutDetailClientProps) {
     };
 
     const totalAdjustments = payout.adjustments.reduce((sum, a) => sum + a.amount, 0);
+    const c = payout.user.currency || "USD";
 
     return (
         <div className="container mx-auto py-10 px-4">
@@ -142,7 +137,7 @@ export function PayoutDetailClient({ initialData }: PayoutDetailClientProps) {
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-2xl font-bold">{formatCurrency(payout.grossEarnings)}</p>
+                        <p className="text-2xl font-bold">{formatCurrency(payout.grossEarnings, c)}</p>
                         <p className="text-xs text-muted-foreground mt-1">Before adjustments</p>
                     </CardContent>
                 </Card>
@@ -157,7 +152,7 @@ export function PayoutDetailClient({ initialData }: PayoutDetailClientProps) {
                     <CardContent>
                         <p className={`text-2xl font-bold ${totalAdjustments > 0 ? "text-emerald-600" : totalAdjustments < 0 ? "text-red-600" : ""
                             }`}>
-                            {totalAdjustments >= 0 ? "+" : ""}{formatCurrency(totalAdjustments)}
+                            {totalAdjustments >= 0 ? "+" : ""}{formatCurrency(totalAdjustments, c)}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
                             {payout.adjustments.length} adjustment{payout.adjustments.length !== 1 ? "s" : ""}
@@ -173,7 +168,7 @@ export function PayoutDetailClient({ initialData }: PayoutDetailClientProps) {
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-2xl font-bold text-primary">{formatCurrency(payout.finalPayout)}</p>
+                        <p className="text-2xl font-bold text-primary">{formatCurrency(payout.finalPayout, c)}</p>
                         <p className="text-xs text-muted-foreground mt-1">Amount to pay</p>
                     </CardContent>
                 </Card>
@@ -202,7 +197,7 @@ export function PayoutDetailClient({ initialData }: PayoutDetailClientProps) {
                                     </DialogHeader>
                                     <div className="grid gap-4 py-4">
                                         <div className="grid gap-2">
-                                            <Label htmlFor="amount">Amount (USD)</Label>
+                                            <Label htmlFor="amount">Amount ({c})</Label>
                                             <div className="relative">
                                                 <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                                 <Input
@@ -276,7 +271,7 @@ export function PayoutDetailClient({ initialData }: PayoutDetailClientProps) {
                                         className={`text-right font-mono font-medium ${adjustment.amount >= 0 ? "text-emerald-600" : "text-red-600"
                                             }`}
                                     >
-                                        {adjustment.amount >= 0 ? "+" : ""}{formatCurrency(adjustment.amount)}
+                                        {adjustment.amount >= 0 ? "+" : ""}{formatCurrency(adjustment.amount, c)}
                                     </TableCell>
                                 </TableRow>
                             ))}

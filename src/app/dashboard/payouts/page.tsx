@@ -5,7 +5,8 @@ import { auth } from "@/auth";
 import { getRepPayouts } from "./actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, DollarSign, FileText } from "lucide-react";
+import { ArrowLeft, FileText } from "lucide-react";
+import { formatCurrency } from "@/lib/utils/format";
 
 export const dynamic = "force-dynamic";
 
@@ -73,7 +74,7 @@ export default async function RepPayoutsPage() {
                                             <div>
                                                 <p className="text-sm text-muted-foreground">Gross Earnings</p>
                                                 <p className="font-mono font-medium">
-                                                    ${payout.grossEarnings.toLocaleString()}
+                                                    {formatCurrency(payout.grossEarnings, payout.user.currency)}
                                                 </p>
                                             </div>
                                             {payout.adjustments.length > 0 && (
@@ -87,9 +88,8 @@ export default async function RepPayoutsPage() {
                                         </div>
                                         <div className="text-right">
                                             <p className="text-sm text-muted-foreground">Final Payout</p>
-                                            <p className="text-xl font-bold font-mono flex items-center gap-1">
-                                                <DollarSign className="h-4 w-4" />
-                                                {payout.finalPayout.toLocaleString()}
+                                            <p className="text-xl font-bold font-mono">
+                                                {formatCurrency(payout.finalPayout, payout.user.currency)}
                                             </p>
                                         </div>
                                     </div>

@@ -14,9 +14,11 @@ interface BigQueryRow {
     month: string; // ISO date string e.g., "2026-02-01"
     quota: number;
     baseSalary: number;
-    ote: number;
+    ote?: number;
+    commissionRate?: number;
     planId?: string;
     role?: "ADMIN" | "REP" | "MANAGER";
+    currency?: "EUR" | "USD";
 }
 
 interface IngestResponse {
@@ -38,10 +40,15 @@ interface IngestResponse {
  * 1. Finds or creates the User by email
  * 2. Upserts UserPeriodData for the specific month
  * 3. Calculates and saves the effectiveRate
+ * 
+ * Supports two compensation modes via `compensationMode` field:
+ * - "ote" (default): requires `ote` field, derives effectiveRate = (ote - baseSalary) / quota
+ * - "commissionRate": requires `commissionRate` field, derives ote = baseSalary + (commissionRate * quota)
  */
 export async function POST(request: NextRequest): Promise<NextResponse<IngestResponse>> {
     try {
-        const body = await request.json() as BigQueryRow;
+        const body = await request.json() as BigQueryRow & { compensationMode?: "ote" | "commissionRate" };
+        const compensationMode = body.compensationMode || "ote";
 
         // Validate required fields
         if (!body.email) {
@@ -72,11 +79,28 @@ export async function POST(request: NextRequest): Promise<NextResponse<IngestRes
             );
         }
 
-        if (typeof body.ote !== "number") {
-            return NextResponse.json(
-                { success: false, message: "Validation failed", error: "ote must be a number" },
-                { status: 400 }
-            );
+        // Derive OTE and effectiveRate based on compensation mode
+        let ote: number;
+        let effectiveRate: number;
+
+        if (compensationMode === "commissionRate") {
+            if (typeof body.commissionRate !== "number" || body.commissionRate <= 0) {
+                return NextResponse.json(
+                    { success: false, message: "Validation failed", error: "commissionRate must be a positive number when compensationMode is 'commissionRate'" },
+                    { status: 400 }
+                );
+            }
+            effectiveRate = body.commissionRate;
+            ote = body.baseSalary + (body.commissionRate * body.quota);
+        } else {
+            if (typeof body.ote !== "number") {
+                return NextResponse.json(
+                    { success: false, message: "Validation failed", error: "ote must be a number when compensationMode is 'ote'" },
+                    { status: 400 }
+                );
+            }
+            ote = body.ote;
+            effectiveRate = (body.ote - body.baseSalary) / body.quota;
         }
 
         // Parse month to first day of month
@@ -89,9 +113,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<IngestRes
                 { status: 400 }
             );
         }
-
-        // Calculate effective rate: (OTE - Base) / Quota
-        const effectiveRate = (body.ote - body.baseSalary) / body.quota;
 
         // Find or create user
         let user = await prisma.user.findUnique({
@@ -107,9 +128,15 @@ export async function POST(request: NextRequest): Promise<NextResponse<IngestRes
                     name: body.name || body.email.split("@")[0],
                     role: (body.role as Role) || Role.REP,
                     organizationId: CURRENT_ORG_ID,
+                    currency: body.currency || "USD",
                 },
             });
             userCreated = true;
+        } else if (body.currency && ["EUR", "USD"].includes(body.currency)) {
+            await prisma.user.update({
+                where: { id: user.id },
+                data: { currency: body.currency },
+            });
         }
 
         // Upsert UserPeriodData
@@ -126,7 +153,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<IngestRes
                 title: body.title,
                 quota: body.quota,
                 baseSalary: body.baseSalary,
-                ote: body.ote,
+                ote,
                 effectiveRate,
                 planId: body.planId || null,
             },
@@ -134,7 +161,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<IngestRes
                 title: body.title,
                 quota: body.quota,
                 baseSalary: body.baseSalary,
-                ote: body.ote,
+                ote,
                 effectiveRate,
                 planId: body.planId || null,
             },
@@ -167,12 +194,18 @@ export async function POST(request: NextRequest): Promise<NextResponse<IngestRes
 }
 
 /**
- * POST /api/ingest/bigquery (batch)
+ * PUT /api/ingest/bigquery (batch)
  * Bulk import multiple rows
+ * 
+ * Requires `compensationMode` field: "ote" (default) or "commissionRate"
  */
 export async function PUT(request: NextRequest): Promise<NextResponse> {
     try {
-        const body = await request.json() as { rows: BigQueryRow[] };
+        const body = await request.json() as {
+            rows: BigQueryRow[];
+            compensationMode?: "ote" | "commissionRate";
+        };
+        const compensationMode = body.compensationMode || "ote";
 
         if (!Array.isArray(body.rows)) {
             return NextResponse.json(
@@ -185,15 +218,34 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
 
         for (const row of body.rows) {
             try {
-                // Validate row
-                if (!row.email || !row.month || !row.quota || !row.baseSalary || !row.ote) {
-                    results.push({ email: row.email || "unknown", success: false, error: "Missing required fields" });
+                // Validate common required fields
+                if (!row.email || !row.month || !row.quota || !row.baseSalary) {
+                    results.push({ email: row.email || "unknown", success: false, error: "Missing required fields (email, month, quota, baseSalary)" });
                     continue;
+                }
+
+                // Derive OTE and effectiveRate based on compensation mode
+                let ote: number;
+                let effectiveRate: number;
+
+                if (compensationMode === "commissionRate") {
+                    if (!row.commissionRate || row.commissionRate <= 0) {
+                        results.push({ email: row.email, success: false, error: "commissionRate must be a positive number" });
+                        continue;
+                    }
+                    effectiveRate = row.commissionRate;
+                    ote = row.baseSalary + (row.commissionRate * row.quota);
+                } else {
+                    if (!row.ote) {
+                        results.push({ email: row.email, success: false, error: "ote is required when compensationMode is 'ote'" });
+                        continue;
+                    }
+                    ote = row.ote;
+                    effectiveRate = (row.ote - row.baseSalary) / row.quota;
                 }
 
                 const monthDate = new Date(row.month);
                 const normalizedMonth = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
-                const effectiveRate = (row.ote - row.baseSalary) / row.quota;
 
                 // Upsert user
                 const user = await prisma.user.upsert({
@@ -203,9 +255,11 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
                         name: row.name || row.email.split("@")[0],
                         role: (row.role as Role) || Role.REP,
                         organizationId: CURRENT_ORG_ID,
+                        currency: row.currency || "USD",
                     },
                     update: {
                         name: row.name || undefined,
+                        ...(row.currency && ["EUR", "USD"].includes(row.currency) ? { currency: row.currency } : {}),
                     },
                 });
 
@@ -223,7 +277,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
                         title: row.title,
                         quota: row.quota,
                         baseSalary: row.baseSalary,
-                        ote: row.ote,
+                        ote,
                         effectiveRate,
                         planId: row.planId || null,
                     },
@@ -231,7 +285,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
                         title: row.title,
                         quota: row.quota,
                         baseSalary: row.baseSalary,
-                        ote: row.ote,
+                        ote,
                         effectiveRate,
                         planId: row.planId || null,
                     },

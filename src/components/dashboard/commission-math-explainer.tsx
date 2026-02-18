@@ -11,25 +11,20 @@ import {
     AccordionTrigger,
 } from "@/components/ui/accordion";
 import { CommissionResult } from "@/lib/utils/calculateCommissions";
+import { formatCurrency } from "@/lib/utils/format";
 
 interface CommissionMathExplainerProps {
     commission: CommissionResult;
 }
 
-function formatCurrency(amount: number): string {
-    return new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: "USD",
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-    }).format(amount);
-}
+
 
 function formatPercent(value: number): string {
     return `${(value * 100).toFixed(0)}%`;
 }
 
 export function CommissionMathExplainer({ commission }: CommissionMathExplainerProps) {
+    const c = commission.periodData.currency;
     const isRamped = commission.ramp?.isActive ?? false;
     const isProrated = (commission.proration?.factor ?? 1) < 1;
     const hasDrawTopUp = (commission.ramp?.drawTopUp ?? 0) > 0;
@@ -83,7 +78,7 @@ export function CommissionMathExplainer({ commission }: CommissionMathExplainerP
                 </CardHeader>
                 <CardContent>
                     <div className="text-2xl font-bold font-mono mb-3">
-                        {formatCurrency(effectiveQuota)}
+                        {formatCurrency(effectiveQuota, c)}
                     </div>
 
                     {/* Math Explainer Accordion */}
@@ -100,7 +95,7 @@ export function CommissionMathExplainer({ commission }: CommissionMathExplainerP
                                     <div className="bg-muted/50 rounded-md p-3 font-mono text-sm">
                                         <div className="flex flex-wrap items-center gap-2">
                                             <span className="text-muted-foreground">Base Quota</span>
-                                            <span className="font-semibold">{formatCurrency(originalQuota)}</span>
+                                            <span className="font-semibold">{formatCurrency(originalQuota, c)}</span>
 
                                             {isRamped && (
                                                 <>
@@ -121,7 +116,7 @@ export function CommissionMathExplainer({ commission }: CommissionMathExplainerP
                                             )}
 
                                             <span className="text-muted-foreground">=</span>
-                                            <span className="font-bold">{formatCurrency(effectiveQuota)}</span>
+                                            <span className="font-bold">{formatCurrency(effectiveQuota, c)}</span>
                                         </div>
 
                                         {/* Details breakdown */}
@@ -170,7 +165,7 @@ export function CommissionMathExplainer({ commission }: CommissionMathExplainerP
                 <div className="p-3 rounded-md bg-background border">
                     <p className="text-muted-foreground text-xs">OTE (Effective)</p>
                     <p className="font-mono font-medium text-lg">
-                        {formatCurrency(commission.periodData.ote)}
+                        {formatCurrency(commission.periodData.ote, c)}
                     </p>
                     {(isRamped || isProrated) && (
                         <p className="text-xs text-muted-foreground mt-1">Adjusted for ramp/proration</p>
@@ -190,18 +185,18 @@ export function CommissionMathExplainer({ commission }: CommissionMathExplainerP
                         {/* Draw Split Bar */}
                         <div className="mb-4">
                             <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
-                                <span>Total Payout: {formatCurrency(totalPayout)}</span>
+                                <span>Total Payout: {formatCurrency(totalPayout, c)}</span>
                             </div>
                             <div className="h-4 bg-muted rounded-full overflow-hidden flex">
                                 <div
                                     className="h-full bg-emerald-500 transition-all"
                                     style={{ width: `${earnedPercent}%` }}
-                                    title={`Commission Earned: ${formatCurrency(earnedWithoutDraw)}`}
+                                    title={`Commission Earned: ${formatCurrency(earnedWithoutDraw, c)}`}
                                 />
                                 <div
                                     className="h-full bg-amber-400 transition-all"
                                     style={{ width: `${drawPercent}%` }}
-                                    title={`Draw Top-Up: ${formatCurrency(drawTopUp)}`}
+                                    title={`Draw Top-Up: ${formatCurrency(drawTopUp, c)}`}
                                 />
                             </div>
                             {/* Legend */}
@@ -209,12 +204,12 @@ export function CommissionMathExplainer({ commission }: CommissionMathExplainerP
                                 <div className="flex items-center gap-1.5">
                                     <div className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
                                     <span className="text-muted-foreground">Commission Earned</span>
-                                    <span className="font-mono font-medium">{formatCurrency(earnedWithoutDraw)}</span>
+                                    <span className="font-mono font-medium">{formatCurrency(earnedWithoutDraw, c)}</span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
                                     <div className="h-2.5 w-2.5 rounded-full bg-amber-400" />
                                     <span className="text-muted-foreground">Draw Top-Up</span>
-                                    <span className="font-mono font-medium">{formatCurrency(drawTopUp)}</span>
+                                    <span className="font-mono font-medium">{formatCurrency(drawTopUp, c)}</span>
                                 </div>
                             </div>
                         </div>
@@ -223,9 +218,9 @@ export function CommissionMathExplainer({ commission }: CommissionMathExplainerP
                         <div className="p-3 rounded-md bg-amber-500/10 border border-amber-500/20 text-sm">
                             <p className="text-amber-700 font-medium text-xs">Guaranteed Draw Active</p>
                             <p className="text-sm mt-1">
-                                Your guaranteed minimum is {formatCurrency(commission.ramp?.guaranteedDrawAmount ?? 0)}.
-                                Since your earned commission ({formatCurrency(earnedWithoutDraw)}) is below this,
-                                a {formatCurrency(drawTopUp)} draw top-up has been applied.
+                                Your guaranteed minimum is {formatCurrency(commission.ramp?.guaranteedDrawAmount ?? 0, c)}.
+                                Since your earned commission ({formatCurrency(earnedWithoutDraw, c)}) is below this,
+                                a {formatCurrency(drawTopUp, c)} draw top-up has been applied.
                             </p>
                         </div>
                     </CardContent>

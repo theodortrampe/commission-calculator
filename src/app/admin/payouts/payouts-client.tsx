@@ -23,20 +23,14 @@ import {
 } from "./actions";
 import { AdjustmentDialog } from "./adjustment-dialog";
 import { AuditLogSheet } from "./audit-log-sheet";
+import { formatCurrency } from "@/lib/utils/format";
 
 interface PayoutsClientProps {
     initialData: UserEarningsSummary[];
     currentMonth: Date;
 }
 
-function formatCurrency(amount: number): string {
-    return new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: "USD",
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-    }).format(amount);
-}
+
 
 export function PayoutsClient({ initialData, currentMonth }: PayoutsClientProps) {
     const [data, setData] = useState<UserEarningsSummary[]>(initialData);
@@ -259,6 +253,7 @@ export function PayoutsClient({ initialData, currentMonth }: PayoutsClientProps)
                                     const earnings = commission?.commissionEarned || 0;
                                     const adjustedEarnings = earnings + item.fixedBonusTotal;
 
+                                    const userCurrency = item.user.currency || "USD";
 
                                     const isRampActive = commission?.ramp?.isActive ?? false;
                                     const isProrated = (commission?.proration?.factor ?? 1) < 1;
@@ -294,28 +289,28 @@ export function PayoutsClient({ initialData, currentMonth }: PayoutsClientProps)
                                             <TableCell className="text-right font-mono text-sm">
                                                 {drawTopUp > 0 ? (
                                                     <span className="text-amber-600 font-medium">
-                                                        {formatCurrency(drawTopUp)}
+                                                        {formatCurrency(drawTopUp, userCurrency)}
                                                     </span>
                                                 ) : (
                                                     <span className="text-muted-foreground">—</span>
                                                 )}
                                             </TableCell>
                                             <TableCell className="text-right font-mono text-muted-foreground">
-                                                {formatCurrency(variableBonus)}
+                                                {formatCurrency(variableBonus, userCurrency)}
                                             </TableCell>
                                             <TableCell className="text-right font-mono text-muted-foreground">
-                                                {formatCurrency(quota)}
+                                                {formatCurrency(quota, userCurrency)}
                                             </TableCell>
                                             <TableCell className="text-right font-mono">
-                                                {formatCurrency(baseRevenue)}
+                                                {formatCurrency(baseRevenue, userCurrency)}
                                             </TableCell>
                                             <TableCell className="text-right font-mono">
                                                 <span className={item.revenueAdjustmentTotal !== 0 ? "text-purple-600 font-medium" : ""}>
-                                                    {formatCurrency(adjustedRevenue)}
+                                                    {formatCurrency(adjustedRevenue, userCurrency)}
                                                 </span>
                                                 {item.revenueAdjustmentTotal > 0 && (
                                                     <span className="text-xs text-purple-500 ml-1">
-                                                        (+{formatCurrency(item.revenueAdjustmentTotal)})
+                                                        (+{formatCurrency(item.revenueAdjustmentTotal, userCurrency)})
                                                     </span>
                                                 )}
                                             </TableCell>
@@ -331,15 +326,15 @@ export function PayoutsClient({ initialData, currentMonth }: PayoutsClientProps)
                                                 </span>
                                             </TableCell>
                                             <TableCell className="text-right font-mono">
-                                                {formatCurrency(earnings)}
+                                                {formatCurrency(earnings, userCurrency)}
                                             </TableCell>
                                             <TableCell className="text-right font-mono font-medium">
                                                 <span className={item.fixedBonusTotal !== 0 ? "text-green-600" : ""}>
-                                                    {formatCurrency(adjustedEarnings)}
+                                                    {formatCurrency(adjustedEarnings, userCurrency)}
                                                 </span>
                                                 {item.fixedBonusTotal > 0 && (
                                                     <span className="text-xs text-green-500 ml-1">
-                                                        (+{formatCurrency(item.fixedBonusTotal)})
+                                                        (+{formatCurrency(item.fixedBonusTotal, userCurrency)})
                                                     </span>
                                                 )}
                                             </TableCell>
@@ -457,11 +452,11 @@ export function PayoutsClient({ initialData, currentMonth }: PayoutsClientProps)
                                                         </Badge>
                                                     </TableCell>
                                                     <TableCell className="text-right font-mono">
-                                                        {formatCurrency(adj.amount)}
+                                                        {formatCurrency(adj.amount, item.user.currency || "USD")}
                                                     </TableCell>
                                                     <TableCell className="text-right font-mono font-medium">
                                                         <span className={netImpact >= 0 ? "text-emerald-600" : "text-red-600"}>
-                                                            {netImpact >= 0 ? "+" : ""}{formatCurrency(netImpact)}
+                                                            {netImpact >= 0 ? "+" : ""}{formatCurrency(netImpact, item.user.currency || "USD")}
                                                         </span>
                                                     </TableCell>
                                                     <TableCell className="text-muted-foreground max-w-xs truncate">

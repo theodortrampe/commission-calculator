@@ -13,6 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { UserEarningsSummary } from "./actions";
+import { formatCurrency } from "@/lib/utils/format";
 
 interface AuditLogSheetProps {
     item: UserEarningsSummary | null;
@@ -20,14 +21,7 @@ interface AuditLogSheetProps {
     onOpenChange: (open: boolean) => void;
 }
 
-function formatCurrency(amount: number): string {
-    return new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: "USD",
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-    }).format(amount);
-}
+
 
 function AuditRow({ label, value, highlight, muted }: { label: string; value: string; highlight?: boolean; muted?: boolean }) {
     return (
@@ -44,6 +38,7 @@ export function AuditLogSheet({ item, open, onOpenChange }: AuditLogSheetProps) 
     if (!item?.commission) return null;
 
     const commission = item.commission;
+    const c = commission.periodData.currency;
     const isRamped = commission.ramp?.isActive ?? false;
     const isProrated = (commission.proration?.factor ?? 1) < 1;
     const hasDrawTopUp = (commission.ramp?.drawTopUp ?? 0) > 0;
@@ -94,7 +89,7 @@ export function AuditLogSheet({ item, open, onOpenChange }: AuditLogSheetProps) 
                             Quota Calculation
                         </h4>
                         <div className="bg-muted/50 rounded-lg p-3 space-y-1">
-                            <AuditRow label="Base Quota" value={formatCurrency(originalQuota)} />
+                            <AuditRow label="Base Quota" value={formatCurrency(originalQuota, c)} />
                             {isRamped && (
                                 <>
                                     <AuditRow
@@ -103,7 +98,7 @@ export function AuditLogSheet({ item, open, onOpenChange }: AuditLogSheetProps) 
                                     />
                                     <AuditRow
                                         label="Ramped Quota"
-                                        value={formatCurrency(commission.ramp!.rampedQuotaPreProration)}
+                                        value={formatCurrency(commission.ramp!.rampedQuotaPreProration, c)}
                                     />
                                 </>
                             )}
@@ -116,7 +111,7 @@ export function AuditLogSheet({ item, open, onOpenChange }: AuditLogSheetProps) 
                             <Separator className="my-1" />
                             <AuditRow
                                 label="Effective Quota"
-                                value={formatCurrency(commission.periodData.quota)}
+                                value={formatCurrency(commission.periodData.quota, c)}
                                 highlight
                             />
                         </div>
@@ -128,7 +123,7 @@ export function AuditLogSheet({ item, open, onOpenChange }: AuditLogSheetProps) 
                             Revenue
                         </h4>
                         <div className="bg-muted/50 rounded-lg p-3 space-y-1">
-                            <AuditRow label="Total Revenue" value={formatCurrency(commission.totalRevenue)} />
+                            <AuditRow label="Total Revenue" value={formatCurrency(commission.totalRevenue, c)} />
                             <AuditRow label="Attainment" value={`${commission.attainmentPercent.toFixed(1)}%`} highlight />
                         </div>
                     </div>
@@ -141,7 +136,7 @@ export function AuditLogSheet({ item, open, onOpenChange }: AuditLogSheetProps) 
                         <div className="bg-muted/50 rounded-lg p-3 space-y-1">
                             <AuditRow
                                 label="Base Revenue (up to quota)"
-                                value={formatCurrency(commission.breakdown.baseRevenue)}
+                                value={formatCurrency(commission.breakdown.baseRevenue, c)}
                             />
                             <AuditRow
                                 label={`× Rate (${(commission.periodData.effectiveRate * 100).toFixed(2)}%)`}
@@ -150,7 +145,7 @@ export function AuditLogSheet({ item, open, onOpenChange }: AuditLogSheetProps) 
                             />
                             <AuditRow
                                 label="Base Commission"
-                                value={formatCurrency(commission.breakdown.baseCommission)}
+                                value={formatCurrency(commission.breakdown.baseCommission, c)}
                             />
 
                             {commission.breakdown.overageRevenue > 0 && (
@@ -158,7 +153,7 @@ export function AuditLogSheet({ item, open, onOpenChange }: AuditLogSheetProps) 
                                     <Separator className="my-1" />
                                     <AuditRow
                                         label="Overage Revenue"
-                                        value={formatCurrency(commission.breakdown.overageRevenue)}
+                                        value={formatCurrency(commission.breakdown.overageRevenue, c)}
                                     />
                                     <AuditRow
                                         label={`× Rate × ${commission.breakdown.acceleratorMultiplier}x accel`}
@@ -167,7 +162,7 @@ export function AuditLogSheet({ item, open, onOpenChange }: AuditLogSheetProps) 
                                     />
                                     <AuditRow
                                         label="Overage Commission"
-                                        value={formatCurrency(commission.breakdown.overageCommission)}
+                                        value={formatCurrency(commission.breakdown.overageCommission, c)}
                                     />
                                     <AuditRow
                                         label="Tier Applied"
@@ -182,7 +177,7 @@ export function AuditLogSheet({ item, open, onOpenChange }: AuditLogSheetProps) 
                                     <Separator className="my-1" />
                                     <AuditRow
                                         label="Kicker Bonus"
-                                        value={formatCurrency(commission.breakdown.kickerAmount)}
+                                        value={formatCurrency(commission.breakdown.kickerAmount, c)}
                                     />
                                     <AuditRow
                                         label="Kickers Applied"
@@ -198,7 +193,8 @@ export function AuditLogSheet({ item, open, onOpenChange }: AuditLogSheetProps) 
                                 value={formatCurrency(
                                     commission.breakdown.baseCommission +
                                     commission.breakdown.overageCommission +
-                                    commission.breakdown.kickerAmount
+                                    commission.breakdown.kickerAmount,
+                                    c
                                 )}
                                 highlight
                             />
@@ -214,13 +210,13 @@ export function AuditLogSheet({ item, open, onOpenChange }: AuditLogSheetProps) 
                             <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-3 space-y-1">
                                 <AuditRow
                                     label="Guaranteed Draw (prorated)"
-                                    value={formatCurrency(commission.ramp!.guaranteedDrawAmount)}
+                                    value={formatCurrency(commission.ramp!.guaranteedDrawAmount, c)}
                                 />
                                 {hasDrawTopUp && (
                                     <>
                                         <AuditRow
                                             label="Draw Top-Up Applied"
-                                            value={`+ ${formatCurrency(commission.ramp!.drawTopUp)}`}
+                                            value={`+ ${formatCurrency(commission.ramp!.drawTopUp, c)}`}
                                         />
                                     </>
                                 )}
@@ -241,13 +237,13 @@ export function AuditLogSheet({ item, open, onOpenChange }: AuditLogSheetProps) 
                         <div className="bg-muted/50 rounded-lg p-3 space-y-1">
                             <AuditRow
                                 label="Total Commission"
-                                value={formatCurrency(commission.commissionEarned)}
+                                value={formatCurrency(commission.commissionEarned, c)}
                                 highlight
                             />
                             {item.fixedBonusTotal !== 0 && (
                                 <AuditRow
                                     label="Fixed Bonus Adjustments"
-                                    value={`+ ${formatCurrency(item.fixedBonusTotal)}`}
+                                    value={`+ ${formatCurrency(item.fixedBonusTotal, c)}`}
                                 />
                             )}
                             {item.fixedBonusTotal !== 0 && (
@@ -255,7 +251,7 @@ export function AuditLogSheet({ item, open, onOpenChange }: AuditLogSheetProps) 
                                     <Separator className="my-1" />
                                     <AuditRow
                                         label="Adjusted Payout"
-                                        value={formatCurrency(commission.commissionEarned + item.fixedBonusTotal)}
+                                        value={formatCurrency(commission.commissionEarned + item.fixedBonusTotal, c)}
                                         highlight
                                     />
                                 </>
@@ -271,8 +267,8 @@ export function AuditLogSheet({ item, open, onOpenChange }: AuditLogSheetProps) 
                         <div className="bg-muted/50 rounded-lg p-3 space-y-1 text-sm">
                             <AuditRow label="Plan" value={commission.periodData.planName ?? "Standard"} />
                             <AuditRow label="Effective Rate" value={`${(commission.periodData.effectiveRate * 100).toFixed(2)}%`} />
-                            <AuditRow label="OTE (Effective)" value={formatCurrency(commission.periodData.ote)} />
-                            <AuditRow label="Base Salary" value={formatCurrency(commission.periodData.baseSalary)} />
+                            <AuditRow label="OTE (Effective)" value={formatCurrency(commission.periodData.ote, c)} />
+                            <AuditRow label="Base Salary" value={formatCurrency(commission.periodData.baseSalary, c)} />
                             {isRamped && (
                                 <AuditRow
                                     label="Ramp Step"

@@ -44,6 +44,7 @@ export interface CommissionResult {
         planName: string | null;
         ote: number;
         baseSalary: number;
+        currency: string;
     };
     proration?: {
         activeDays: number;

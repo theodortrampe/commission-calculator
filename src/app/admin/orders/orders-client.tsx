@@ -25,6 +25,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import { OrderWithUser, getAllOrders } from "./actions";
+import { formatCurrency } from "@/lib/utils/format";
 
 interface OrdersClientProps {
     initialOrders: OrderWithUser[];
@@ -133,7 +134,7 @@ export function OrdersClient({ initialOrders, reps, months }: OrdersClientProps)
                             <TableRow>
                                 <TableHead>Order #</TableHead>
                                 <TableHead>Rep</TableHead>
-                                <TableHead>Amount (USD)</TableHead>
+                                <TableHead>Amount</TableHead>
                                 <TableHead>Booking Date</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -157,7 +158,7 @@ export function OrdersClient({ initialOrders, reps, months }: OrdersClientProps)
                                         </TableCell>
                                         <TableCell>{order.user.name}</TableCell>
                                         <TableCell className="font-mono">
-                                            ${order.convertedUsd.toLocaleString()}
+                                            {formatCurrency(order.convertedUsd, "USD")}
                                         </TableCell>
                                         <TableCell>
                                             {format(order.bookingDate, "MMM d, yyyy")}

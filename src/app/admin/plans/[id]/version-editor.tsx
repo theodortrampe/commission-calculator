@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Loader2, Save, Plus, Trash2, Settings2, Zap, TrendingUp, Infinity } from "lucide-react";
-import { CompPlan, RampStep } from "@prisma/client";
+import { CompPlan, RampStep, PayoutFreq } from "@prisma/client";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +22,13 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
 import { updateCompPlan, saveRampSteps } from "../actions";
 import { RampConfigurationFormInline } from "./ramp-configuration-form";
@@ -30,7 +37,6 @@ import { RampConfigurationFormInline } from "./ramp-configuration-form";
 const acceleratorTierSchema = z.object({
     minAttainment: z.coerce.number<number>().min(0),
     maxAttainment: z.coerce.number<number>().min(0).nullable(),
-    uncapped: z.boolean(),
     multiplier: z.coerce.number<number>().min(0).step(0.1),
 });
 
@@ -42,6 +48,7 @@ const kickerBonusSchema = z.object({
 
 const formSchema = z.object({
     baseRateMultiplier: z.coerce.number<number>().min(0),
+    frequency: z.nativeEnum(PayoutFreq),
     acceleratorsEnabled: z.boolean(),
     kickersEnabled: z.boolean(),
     acceleratorTiers: z.array(acceleratorTierSchema),
@@ -58,12 +65,11 @@ interface PlanConfigDialogProps {
 // Parse existing accelerators JSON into tier rows
 function parseAcceleratorTiers(accelerators: any): FormValues["acceleratorTiers"] {
     if (!accelerators || !accelerators.tiers || !Array.isArray(accelerators.tiers)) {
-        return [{ minAttainment: 0, maxAttainment: 100, uncapped: false, multiplier: 1.0 }];
+        return [{ minAttainment: 0, maxAttainment: 100, multiplier: 1.0 }];
     }
     return accelerators.tiers.map((t: any) => ({
         minAttainment: t.minAttainment ?? 0,
         maxAttainment: t.maxAttainment ?? null,
-        uncapped: t.maxAttainment === null || t.maxAttainment === undefined,
         multiplier: t.multiplier ?? 1.0,
     }));
 }
@@ -91,6 +97,7 @@ export function VersionEditor({ plan, initialSteps }: PlanConfigDialogProps) {
         resolver: zodResolver(formSchema),
         defaultValues: {
             baseRateMultiplier: plan.baseRateMultiplier,
+            frequency: plan.frequency,
             acceleratorsEnabled: plan.acceleratorsEnabled,
             kickersEnabled: plan.kickersEnabled,
             acceleratorTiers: parseAcceleratorTiers(plan.accelerators),
@@ -116,11 +123,21 @@ export function VersionEditor({ plan, initialSteps }: PlanConfigDialogProps) {
     function onSubmit(values: FormValues) {
         // Build accelerators JSON from tiers
         const acceleratorsJson = {
-            tiers: values.acceleratorTiers.map((t) => ({
-                minAttainment: t.minAttainment,
-                maxAttainment: t.uncapped ? null : t.maxAttainment,
-                multiplier: t.multiplier,
-            })),
+            tiers: values.acceleratorTiers.map((t, index) => {
+                // Determine max attainment based on next tier's start, or use entered value for last tier
+                let maxAttainment = t.maxAttainment;
+
+                // If there's a next tier, this tier ends where the next one begins
+                if (index < values.acceleratorTiers.length - 1) {
+                    maxAttainment = values.acceleratorTiers[index + 1].minAttainment;
+                }
+
+                return {
+                    minAttainment: t.minAttainment,
+                    maxAttainment: maxAttainment,
+                    multiplier: t.multiplier,
+                };
+            }),
         };
 
         // Build kickers JSON from bonuses
@@ -134,6 +151,7 @@ export function VersionEditor({ plan, initialSteps }: PlanConfigDialogProps) {
         startTransition(async () => {
             await updateCompPlan(plan.id, {
                 baseRateMultiplier: values.baseRateMultiplier,
+                frequency: values.frequency,
                 acceleratorsEnabled: values.acceleratorsEnabled,
                 kickersEnabled: values.kickersEnabled,
                 accelerators: acceleratorsJson,
@@ -173,8 +191,8 @@ export function VersionEditor({ plan, initialSteps }: PlanConfigDialogProps) {
                             type="button"
                             onClick={() => setActiveTab(tab.id)}
                             className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-t-md transition-colors ${activeTab === tab.id
-                                    ? "bg-background border border-b-0 border-border text-foreground -mb-px"
-                                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                                ? "bg-background border border-b-0 border-border text-foreground -mb-px"
+                                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                                 }`}
                         >
                             {tab.icon}
@@ -196,6 +214,24 @@ export function VersionEditor({ plan, initialSteps }: PlanConfigDialogProps) {
                                 />
                                 <p className="text-xs text-muted-foreground">
                                     Scales the effective commission rate. 1.0 = standard rate.
+                                </p>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Payout Frequency</Label>
+                                <Select
+                                    onValueChange={(val) => form.setValue("frequency", val as PayoutFreq)}
+                                    defaultValue={form.getValues("frequency")}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select frequency" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value={PayoutFreq.MONTHLY}>Monthly</SelectItem>
+                                        <SelectItem value={PayoutFreq.QUARTERLY}>Quarterly</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <p className="text-xs text-muted-foreground">
+                                    Determines how often commissions are calculated and paid.
                                 </p>
                             </div>
                         </div>
@@ -235,12 +271,16 @@ export function VersionEditor({ plan, initialSteps }: PlanConfigDialogProps) {
                                             type="button"
                                             variant="outline"
                                             size="sm"
-                                            onClick={() => appendTier({
-                                                minAttainment: tierFields.length > 0 ? (form.getValues(`acceleratorTiers.${tierFields.length - 1}.maxAttainment`) ?? 150) : 0,
-                                                maxAttainment: null,
-                                                uncapped: true,
-                                                multiplier: 1.0,
-                                            })}
+                                            onClick={() => {
+                                                const lastTierMax = tierFields.length > 0 ? form.getValues(`acceleratorTiers.${tierFields.length - 1}.maxAttainment`) : 0;
+                                                const nextMin = (typeof lastTierMax === 'number' && !isNaN(lastTierMax)) ? lastTierMax : 0;
+
+                                                appendTier({
+                                                    minAttainment: nextMin,
+                                                    maxAttainment: null,
+                                                    multiplier: 1.0,
+                                                });
+                                            }}
                                         >
                                             <Plus className="h-3.5 w-3.5 mr-1" />
                                             Add Tier
@@ -264,7 +304,6 @@ export function VersionEditor({ plan, initialSteps }: PlanConfigDialogProps) {
                                     )}
 
                                     {tierFields.map((field, index) => {
-                                        const isUncapped = form.watch(`acceleratorTiers.${index}.uncapped`);
                                         return (
                                             <div key={field.id} className="grid grid-cols-[1fr_1fr_1fr_40px] gap-3 items-center">
                                                 <Input
@@ -274,27 +313,21 @@ export function VersionEditor({ plan, initialSteps }: PlanConfigDialogProps) {
                                                     {...form.register(`acceleratorTiers.${index}.minAttainment`, { valueAsNumber: true })}
                                                 />
                                                 <div className="flex items-center gap-2">
-                                                    {isUncapped ? (
-                                                        <div className="flex items-center gap-1.5 h-9 px-3 rounded-md border bg-muted/50 text-sm text-muted-foreground flex-1">
-                                                            <Infinity className="h-3.5 w-3.5" />
-                                                            <span>Uncapped</span>
+                                                    {index < tierFields.length - 1 ? (
+                                                        <div className="flex items-center h-9 px-3 rounded-md border bg-muted/50 text-sm text-foreground w-full">
+                                                            {/* Show the next tier's start as the max for this tier */}
+                                                            {/* We need to watch the next tier's value to keep this in sync visually */}
+                                                            <TiedMaxAttainmentDisplay control={form.control} index={index} />
                                                         </div>
                                                     ) : (
                                                         <Input
                                                             type="number"
                                                             min={0}
+                                                            placeholder="Uncapped"
                                                             className="h-9 text-sm"
                                                             {...form.register(`acceleratorTiers.${index}.maxAttainment`, { valueAsNumber: true })}
                                                         />
                                                     )}
-                                                    <Switch
-                                                        checked={isUncapped}
-                                                        onCheckedChange={(checked) => {
-                                                            form.setValue(`acceleratorTiers.${index}.uncapped`, checked);
-                                                            if (checked) form.setValue(`acceleratorTiers.${index}.maxAttainment`, null);
-                                                        }}
-                                                        className="scale-75"
-                                                    />
                                                 </div>
                                                 <div className="relative">
                                                     <Input
@@ -423,4 +456,20 @@ export function VersionEditor({ plan, initialSteps }: PlanConfigDialogProps) {
             </DialogContent>
         </Dialog>
     );
+}
+
+function TiedMaxAttainmentDisplay({ control, index }: { control: any; index: number }) {
+    // We need to watch the NEXT tier's minAttainment
+    const nextTierMin = useWaitAndWatch(control, `acceleratorTiers.${index + 1}.minAttainment`);
+    const displayValue = (nextTierMin !== null && nextTierMin !== undefined && !isNaN(nextTierMin)) ? nextTierMin : '...';
+    return <span>{displayValue}</span>;
+}
+
+// New helper hook to wrap useWatch
+function useWaitAndWatch(control: any, name: string) {
+    const value = useWatch({
+        control,
+        name,
+    });
+    return value;
 }

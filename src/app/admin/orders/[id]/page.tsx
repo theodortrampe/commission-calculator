@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getOrderById } from "../actions";
+import { formatCurrency } from "@/lib/utils/format";
 
 export const dynamic = "force-dynamic";
 
@@ -71,13 +72,13 @@ export default async function OrderDetailPage({ params }: Props) {
                             <div>
                                 <p className="text-sm text-muted-foreground">Amount (USD)</p>
                                 <p className="text-2xl font-bold font-mono">
-                                    ${order.convertedUsd.toLocaleString()}
+                                    {formatCurrency(order.convertedUsd, "USD")}
                                 </p>
                             </div>
                             <div>
                                 <p className="text-sm text-muted-foreground">Amount (EUR)</p>
                                 <p className="text-2xl font-bold font-mono">
-                                    €{order.convertedEur.toLocaleString()}
+                                    {formatCurrency(order.convertedEur, "EUR")}
                                 </p>
                             </div>
                         </div>

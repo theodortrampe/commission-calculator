@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 
 type TabType = "csv" | "bigquery";
 type DataType = "compensation" | "orders";
+type CompensationMode = "ote" | "commissionRate";
 
 interface ParseResult {
     totalRows: number;
@@ -30,6 +31,7 @@ interface ImportResult {
 export function ImportClient() {
     const [activeTab, setActiveTab] = useState<TabType>("csv");
     const [dataType, setDataType] = useState<DataType>("compensation");
+    const [compensationMode, setCompensationMode] = useState<CompensationMode>("ote");
     const [file, setFile] = useState<File | null>(null);
     const [parseResult, setParseResult] = useState<ParseResult | null>(null);
     const [columnMapping, setColumnMapping] = useState<Record<string, string>>({});
@@ -53,6 +55,9 @@ export function ImportClient() {
             const formData = new FormData();
             formData.append("file", selectedFile);
             formData.append("dataType", dataType);
+            if (dataType === "compensation") {
+                formData.append("compensationMode", compensationMode);
+            }
 
             const response = await fetch("/api/import/csv", {
                 method: "POST",
@@ -72,7 +77,7 @@ export function ImportClient() {
         } finally {
             setIsParsing(false);
         }
-    }, [dataType]);
+    }, [dataType, compensationMode]);
 
     const handleImport = useCallback(async () => {
         if (!parseResult) return;
@@ -85,6 +90,9 @@ export function ImportClient() {
             const formData = new FormData();
             formData.append("file", file!);
             formData.append("dataType", dataType);
+            if (dataType === "compensation") {
+                formData.append("compensationMode", compensationMode);
+            }
 
             const parseResponse = await fetch("/api/import/csv", {
                 method: "POST",
@@ -103,8 +111,9 @@ export function ImportClient() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     dataType,
-                    rows: parseData.data.preview, // Note: This uses preview rows. API needs update to return full rows for full import.
+                    rows: parseData.data.preview,
                     columnMapping,
+                    ...(dataType === "compensation" ? { compensationMode } : {}),
                 }),
             });
 
@@ -120,7 +129,7 @@ export function ImportClient() {
         } finally {
             setIsImporting(false);
         }
-    }, [parseResult, file, dataType, columnMapping]);
+    }, [parseResult, file, dataType, columnMapping, compensationMode]);
 
     const copyToClipboard = (text: string, id: string) => {
         navigator.clipboard.writeText(text);
@@ -129,14 +138,27 @@ export function ImportClient() {
     };
 
     const sampleSQL = {
-        compensation: `SELECT
+        compensation: compensationMode === "commissionRate"
+            ? `SELECT
   email,
   name,
   title,
   FORMAT_DATE('%Y-%m-01', period_date) as month,
   quota,
   base_salary as baseSalary,
-  ote
+  commission_rate as commissionRate,
+  currency  -- optional: EUR or USD (default: USD)
+FROM your_project.your_dataset.compensation_table
+WHERE period_date >= DATE_TRUNC(CURRENT_DATE(), MONTH)`
+            : `SELECT
+  email,
+  name,
+  title,
+  FORMAT_DATE('%Y-%m-01', period_date) as month,
+  quota,
+  base_salary as baseSalary,
+  ote,
+  currency  -- optional: EUR or USD (default: USD)
 FROM your_project.your_dataset.compensation_table
 WHERE period_date >= DATE_TRUNC(CURRENT_DATE(), MONTH)`,
         orders: `SELECT
@@ -219,10 +241,175 @@ WHERE booking_date >= DATE_TRUNC(CURRENT_DATE(), MONTH)`,
                             </div>
                             <p className="text-sm text-muted-foreground mt-2">
                                 {dataType === "compensation"
-                                    ? "Import user quotas, salaries, and OTE for each period"
+                                    ? "Import user quotas, salaries, OTE or commission rate, and optional currency (EUR/USD) for each period"
                                     : "Import sales orders with booking dates and amounts"
                                 }
                             </p>
+
+                            {/* Compensation Mode Selector */}
+                            {dataType === "compensation" && (
+                                <div className="mt-4 p-3 rounded-md bg-muted/50 border">
+                                    <p className="text-sm font-medium mb-2">Compensation Input Mode</p>
+                                    <div className="flex gap-4">
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                name="compensationMode"
+                                                value="ote"
+                                                checked={compensationMode === "ote"}
+                                                onChange={() => {
+                                                    setCompensationMode("ote");
+                                                    setParseResult(null);
+                                                    setFile(null);
+                                                }}
+                                                className="w-4 h-4"
+                                            />
+                                            <div>
+                                                <span className="text-sm font-medium">OTE</span>
+                                                <p className="text-xs text-muted-foreground">On-Target Earnings (total comp at 100% attainment)</p>
+                                            </div>
+                                        </label>
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                name="compensationMode"
+                                                value="commissionRate"
+                                                checked={compensationMode === "commissionRate"}
+                                                onChange={() => {
+                                                    setCompensationMode("commissionRate");
+                                                    setParseResult(null);
+                                                    setFile(null);
+                                                }}
+                                                className="w-4 h-4"
+                                            />
+                                            <div>
+                                                <span className="text-sm font-medium">Commission Rate</span>
+                                                <p className="text-xs text-muted-foreground">Direct rate as % of revenue (e.g., 0.08 = 8%)</p>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    {/* Expected Columns Reference */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-base">Expected Columns</CardTitle>
+                            <CardDescription>
+                                Your file should include these column headers.
+                                <span className="font-medium text-foreground"> Required*</span> columns must be present.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {dataType === "compensation" ? (
+                                <div className="grid gap-3 text-sm">
+                                    <div>
+                                        <p className="font-medium mb-1.5">Required</p>
+                                        <div className="grid gap-1">
+                                            <div className="flex items-baseline gap-2">
+                                                <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">email*</code>
+                                                <span className="text-muted-foreground text-xs">Agent&apos;s email address</span>
+                                            </div>
+                                            <div className="flex items-baseline gap-2">
+                                                <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">month*</code>
+                                                <span className="text-muted-foreground text-xs">Period date (YYYY-MM-01)</span>
+                                            </div>
+                                            <div className="flex items-baseline gap-2">
+                                                <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">quota*</code>
+                                                <span className="text-muted-foreground text-xs">Revenue quota for the period</span>
+                                            </div>
+                                            <div className="flex items-baseline gap-2">
+                                                <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">baseSalary*</code>
+                                                <span className="text-muted-foreground text-xs">Annual base salary</span>
+                                            </div>
+                                            <div className="flex items-baseline gap-2">
+                                                {compensationMode === "commissionRate" ? (
+                                                    <>
+                                                        <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">commissionRate*</code>
+                                                        <span className="text-muted-foreground text-xs">Rate as decimal (e.g., 0.08 = 8%)</span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">ote*</code>
+                                                        <span className="text-muted-foreground text-xs">On-Target Earnings (total comp at 100%)</span>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <p className="font-medium mb-1.5">Optional</p>
+                                        <div className="grid gap-1">
+                                            <div className="flex items-baseline gap-2">
+                                                <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">name</code>
+                                                <span className="text-muted-foreground text-xs">Agent&apos;s display name</span>
+                                            </div>
+                                            <div className="flex items-baseline gap-2">
+                                                <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">title</code>
+                                                <span className="text-muted-foreground text-xs">Job title</span>
+                                            </div>
+                                            <div className="flex items-baseline gap-2">
+                                                <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">role</code>
+                                                <span className="text-muted-foreground text-xs">ADMIN or USER (default: USER)</span>
+                                            </div>
+                                            <div className="flex items-baseline gap-2">
+                                                <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">planId</code>
+                                                <span className="text-muted-foreground text-xs">Compensation plan ID to assign</span>
+                                            </div>
+                                            <div className="flex items-baseline gap-2">
+                                                <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">currency</code>
+                                                <span className="text-muted-foreground text-xs">EUR or USD (default: USD)</span>
+                                            </div>
+                                            {compensationMode === "commissionRate" ? (
+                                                <div className="flex items-baseline gap-2">
+                                                    <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">ote</code>
+                                                    <span className="text-muted-foreground text-xs">On-Target Earnings (if also available)</span>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-baseline gap-2">
+                                                    <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">commissionRate</code>
+                                                    <span className="text-muted-foreground text-xs">Direct commission rate (if also available)</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="grid gap-3 text-sm">
+                                    <div>
+                                        <p className="font-medium mb-1.5">Required</p>
+                                        <div className="grid gap-1">
+                                            <div className="flex items-baseline gap-2">
+                                                <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">orderNumber*</code>
+                                                <span className="text-muted-foreground text-xs">Unique order identifier</span>
+                                            </div>
+                                            <div className="flex items-baseline gap-2">
+                                                <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">userEmail*</code>
+                                                <span className="text-muted-foreground text-xs">Email of the rep who owns this order</span>
+                                            </div>
+                                            <div className="flex items-baseline gap-2">
+                                                <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">convertedUsd*</code>
+                                                <span className="text-muted-foreground text-xs">Order amount in USD</span>
+                                            </div>
+                                            <div className="flex items-baseline gap-2">
+                                                <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">bookingDate*</code>
+                                                <span className="text-muted-foreground text-xs">Date the order was booked (YYYY-MM-DD)</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <p className="font-medium mb-1.5">Optional</p>
+                                        <div className="grid gap-1">
+                                            <div className="flex items-baseline gap-2">
+                                                <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">convertedEur</code>
+                                                <span className="text-muted-foreground text-xs">Order amount in EUR</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
 
@@ -416,8 +603,44 @@ WHERE booking_date >= DATE_TRUNC(CURRENT_DATE(), MONTH)`,
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
+                            {/* Compensation Mode Selector for BigQuery */}
+                            {dataType === "compensation" && (
+                                <div className="p-3 rounded-md bg-muted/50 border">
+                                    <p className="text-sm font-medium mb-2">Compensation Input Mode</p>
+                                    <div className="flex gap-4">
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                name="bqCompensationMode"
+                                                value="ote"
+                                                checked={compensationMode === "ote"}
+                                                onChange={() => setCompensationMode("ote")}
+                                                className="w-4 h-4"
+                                            />
+                                            <div>
+                                                <span className="text-sm font-medium">OTE</span>
+                                                <p className="text-xs text-muted-foreground">On-Target Earnings</p>
+                                            </div>
+                                        </label>
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                name="bqCompensationMode"
+                                                value="commissionRate"
+                                                checked={compensationMode === "commissionRate"}
+                                                onChange={() => setCompensationMode("commissionRate")}
+                                                className="w-4 h-4"
+                                            />
+                                            <div>
+                                                <span className="text-sm font-medium">Commission Rate</span>
+                                                <p className="text-xs text-muted-foreground">Direct rate as % of revenue</p>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+                            )}
                             <div>
-                                <Label className="mb-2 block">For Compensation Data:</Label>
+                                <Label className="mb-2 block">For Compensation Data ({compensationMode === "commissionRate" ? "Commission Rate" : "OTE"} mode):</Label>
                                 <div className="relative">
                                     <pre className="bg-muted p-4 rounded-md text-xs overflow-x-auto font-mono">
                                         {sampleSQL.compensation}
@@ -518,10 +741,16 @@ WHERE booking_date >= DATE_TRUNC(CURRENT_DATE(), MONTH)`,
                             <div className="bg-muted p-4 rounded-md">
                                 <Label className="mb-2 block">Payload Format (batch):</Label>
                                 <pre className="text-xs font-mono">
-                                    {`{
+                                    {dataType === "compensation" ? `{
+  "compensationMode": "${compensationMode}",
   "rows": [
-    { "email": "...", "month": "...", ... },
-    { "email": "...", "month": "...", ... }
+    { "email": "rep@co.com", "month": "2026-01-01", "quota": 100000, "baseSalary": 80000, ${compensationMode === "commissionRate" ? `"commissionRate": 0.08` : `"ote": 150000`}, "currency": "EUR" },
+    ...
+  ]
+}` : `{
+  "rows": [
+    { "orderNumber": "...", "userEmail": "...", ... },
+    ...
   ]
 }`}
                                 </pre>

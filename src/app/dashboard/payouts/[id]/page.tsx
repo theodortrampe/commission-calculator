@@ -5,7 +5,8 @@ import { auth } from "@/auth";
 import { getRepPayoutById } from "../actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, DollarSign, Plus, Minus } from "lucide-react";
+import { ArrowLeft, Plus, Minus } from "lucide-react";
+import { formatCurrency } from "@/lib/utils/format";
 
 export const dynamic = "force-dynamic";
 
@@ -74,7 +75,7 @@ export default async function RepPayoutDetailPage({ params }: Props) {
                     </CardHeader>
                     <CardContent>
                         <p className="text-2xl font-bold font-mono">
-                            ${payout.grossEarnings.toLocaleString()}
+                            {formatCurrency(payout.grossEarnings, payout.user.currency)}
                         </p>
                     </CardContent>
                 </Card>
@@ -87,7 +88,7 @@ export default async function RepPayoutDetailPage({ params }: Props) {
                     </CardHeader>
                     <CardContent>
                         <p className={`text-2xl font-bold font-mono ${totalAdjustments >= 0 ? "text-green-600" : "text-red-600"}`}>
-                            {totalAdjustments >= 0 ? "+" : ""}${totalAdjustments.toLocaleString()}
+                            {totalAdjustments >= 0 ? "+" : ""}{formatCurrency(totalAdjustments, payout.user.currency)}
                         </p>
                     </CardContent>
                 </Card>
@@ -99,9 +100,8 @@ export default async function RepPayoutDetailPage({ params }: Props) {
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-2xl font-bold font-mono flex items-center gap-1">
-                            <DollarSign className="h-5 w-5" />
-                            {payout.finalPayout.toLocaleString()}
+                        <p className="text-2xl font-bold font-mono">
+                            {formatCurrency(payout.finalPayout, payout.user.currency)}
                         </p>
                     </CardContent>
                 </Card>
@@ -145,7 +145,7 @@ export default async function RepPayoutDetailPage({ params }: Props) {
                                         </div>
                                     </div>
                                     <p className={`font-mono font-bold ${adjustment.amount >= 0 ? "text-green-600" : "text-red-600"}`}>
-                                        {adjustment.amount >= 0 ? "+" : ""}${adjustment.amount.toLocaleString()}
+                                        {adjustment.amount >= 0 ? "+" : ""}{formatCurrency(adjustment.amount, payout.user.currency)}
                                     </p>
                                 </div>
                             ))}

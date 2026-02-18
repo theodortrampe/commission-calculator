@@ -4,6 +4,7 @@ import { DollarSign, Target, Clock, TrendingUp, TrendingDown, Calendar } from "l
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CommissionResult } from "@/lib/utils/calculateCommissions";
+import { formatCurrency } from "@/lib/utils/format";
 
 interface StatsCardsProps {
     commission: CommissionResult;
@@ -11,14 +12,7 @@ interface StatsCardsProps {
     pendingPayoutsCount: number;
 }
 
-function formatCurrency(amount: number): string {
-    return new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: "USD",
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-    }).format(amount);
-}
+
 
 function formatPercent(percent: number): string {
     return `${percent.toFixed(1)}%`;
@@ -27,6 +21,7 @@ function formatPercent(percent: number): string {
 export function StatsCards({ commission, pendingPayoutsTotal, pendingPayoutsCount }: StatsCardsProps) {
     const isOverQuota = commission.attainmentPercent >= 100;
     const AttainmentIcon = isOverQuota ? TrendingUp : TrendingDown;
+    const c = commission.periodData.currency;
 
     return (
         <div className="grid gap-4 md:grid-cols-3">
@@ -42,10 +37,10 @@ export function StatsCards({ commission, pendingPayoutsTotal, pendingPayoutsCoun
                 </CardHeader>
                 <CardContent>
                     <div className="text-2xl font-bold">
-                        {formatCurrency(commission.commissionEarned)}
+                        {formatCurrency(commission.commissionEarned, c)}
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
-                        From {formatCurrency(commission.totalRevenue)} revenue
+                        From {formatCurrency(commission.totalRevenue, c)} revenue
                     </p>
                     {commission.breakdown.acceleratorMultiplier > 1 && (
                         <p className="text-xs text-muted-foreground mt-1 font-medium">
@@ -54,7 +49,7 @@ export function StatsCards({ commission, pendingPayoutsTotal, pendingPayoutsCoun
                     )}
                     {(commission.ramp?.drawTopUp ?? 0) > 0 && (
                         <p className="text-xs text-amber-600 mt-1 font-medium">
-                            Includes {formatCurrency(commission.ramp!.drawTopUp)} draw top-up
+                            Includes {formatCurrency(commission.ramp!.drawTopUp, c)} draw top-up
                         </p>
                     )}
                 </CardContent>
@@ -77,7 +72,7 @@ export function StatsCards({ commission, pendingPayoutsTotal, pendingPayoutsCoun
                     <div className="flex items-center gap-1 mt-1">
                         <AttainmentIcon className="h-3 w-3 text-muted-foreground" />
                         <p className="text-xs text-muted-foreground">
-                            Effective Quota: {formatCurrency(commission.periodData.quota)}
+                            Effective Quota: {formatCurrency(commission.periodData.quota, c)}
                         </p>
                     </div>
                     {/* Ramp/Proration indicators */}
@@ -117,7 +112,7 @@ export function StatsCards({ commission, pendingPayoutsTotal, pendingPayoutsCoun
                 </CardHeader>
                 <CardContent>
                     <div className="text-2xl font-bold">
-                        {formatCurrency(pendingPayoutsTotal)}
+                        {formatCurrency(pendingPayoutsTotal, c)}
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
                         {pendingPayoutsCount === 0

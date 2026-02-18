@@ -70,6 +70,7 @@ export async function calculateCommissions(
         },
         include: {
             plan: true,
+            user: { select: { currency: true } },
         },
     });
 
@@ -202,8 +203,10 @@ export async function calculateCommissions(
         },
     });
 
-    // Calculate total revenue (including any revenue adjustments)
-    const orderRevenue = orders.reduce((sum, order) => sum + order.convertedUsd, 0);
+    // Calculate total revenue using agent's currency
+    const currency = periodData.user.currency || "USD";
+    const orderRevenue = orders.reduce((sum, order) =>
+        sum + (currency === "EUR" ? order.convertedEur : order.convertedUsd), 0);
     const totalRevenue = orderRevenue + revenueAdjustment;
 
     // Calculate attainment percentage against PRORATED quota
@@ -276,6 +279,7 @@ export async function calculateCommissions(
             planName: plan?.name ?? null,
             ote: proratedOTE, // Return the actually used (prorated) OTE
             baseSalary: periodData.baseSalary, // Base typically passed through, effectively prorated if we calculated payout
+            currency,
         },
         proration: {
             activeDays,

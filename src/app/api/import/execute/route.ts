@@ -42,9 +42,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             dataType: "compensation" | "orders";
             rows: ImportRow[];
             columnMapping: ColumnMapping;
+            compensationMode?: "ote" | "commissionRate";
         };
 
-        const { dataType, rows, columnMapping } = body;
+        const { dataType, rows, columnMapping, compensationMode = "ote" } = body;
 
         if (!dataType || !["compensation", "orders"].includes(dataType)) {
             return NextResponse.json(
@@ -85,8 +86,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                     const monthStr = String(getValue(row, "month") || "").trim();
                     const quota = Number(getValue(row, "quota"));
                     const baseSalary = Number(getValue(row, "baseSalary"));
-                    const ote = Number(getValue(row, "ote"));
                     const role = String(getValue(row, "role") || "REP").toUpperCase() as Role;
+                    const currency = String(getValue(row, "currency") || "USD").toUpperCase();
 
                     if (!email) {
                         results.push({ row: i + 1, success: false, error: "Email is required" });
@@ -103,6 +104,23 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                         continue;
                     }
 
+                    // Derive OTE and effectiveRate based on compensation mode
+                    let ote: number;
+                    let effectiveRate: number;
+
+                    if (compensationMode === "commissionRate") {
+                        const commissionRate = Number(getValue(row, "commissionRate"));
+                        if (isNaN(commissionRate) || commissionRate <= 0) {
+                            results.push({ row: i + 1, success: false, error: "Commission rate must be a positive number" });
+                            continue;
+                        }
+                        effectiveRate = commissionRate;
+                        ote = baseSalary + (commissionRate * quota);
+                    } else {
+                        ote = Number(getValue(row, "ote"));
+                        effectiveRate = (ote - baseSalary) / quota;
+                    }
+
                     const monthDate = new Date(monthStr);
                     if (isNaN(monthDate.getTime())) {
                         results.push({ row: i + 1, success: false, error: "Invalid month date" });
@@ -110,7 +128,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                     }
 
                     const normalizedMonth = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
-                    const effectiveRate = (ote - baseSalary) / quota;
 
                     // Upsert user
                     const user = await prisma.user.upsert({
@@ -120,9 +137,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                             name: name || email.split("@")[0],
                             role: ["ADMIN", "REP", "MANAGER"].includes(role) ? role : Role.REP,
                             organizationId: CURRENT_ORG_ID,
+                            currency: ["EUR", "USD"].includes(currency) ? currency : "USD",
                         },
                         update: {
                             name: name || undefined,
+                            ...(["EUR", "USD"].includes(currency) ? { currency } : {}),
                         },
                     });
 

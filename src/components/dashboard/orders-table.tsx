@@ -10,21 +10,14 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
+import { formatCurrency } from "@/lib/utils/format";
 
 interface OrdersTableProps {
     orders: Order[];
+    currency?: string;
 }
 
-function formatCurrency(amount: number): string {
-    return new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: "USD",
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-    }).format(amount);
-}
-
-export function OrdersTable({ orders }: OrdersTableProps) {
+export function OrdersTable({ orders, currency = "USD" }: OrdersTableProps) {
     if (orders.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -33,6 +26,8 @@ export function OrdersTable({ orders }: OrdersTableProps) {
         );
     }
 
+    const altCurrency = currency === "EUR" ? "USD" : "EUR";
+
     return (
         <div className="rounded-lg border">
             <Table>
@@ -40,8 +35,8 @@ export function OrdersTable({ orders }: OrdersTableProps) {
                     <TableRow>
                         <TableHead>Order #</TableHead>
                         <TableHead>Booking Date</TableHead>
-                        <TableHead className="text-right">Amount (USD)</TableHead>
-                        <TableHead className="text-right">Amount (EUR)</TableHead>
+                        <TableHead className="text-right">Amount ({currency})</TableHead>
+                        <TableHead className="text-right">Amount ({altCurrency})</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -50,10 +45,10 @@ export function OrdersTable({ orders }: OrdersTableProps) {
                             <TableCell className="font-medium">{order.orderNumber}</TableCell>
                             <TableCell>{format(new Date(order.bookingDate), "MMM d, yyyy")}</TableCell>
                             <TableCell className="text-right font-mono">
-                                {formatCurrency(order.convertedUsd)}
+                                {formatCurrency(currency === "EUR" ? order.convertedEur : order.convertedUsd, currency)}
                             </TableCell>
                             <TableCell className="text-right font-mono text-muted-foreground">
-                                €{order.convertedEur.toLocaleString()}
+                                {formatCurrency(currency === "EUR" ? order.convertedUsd : order.convertedEur, altCurrency)}
                             </TableCell>
                         </TableRow>
                     ))}

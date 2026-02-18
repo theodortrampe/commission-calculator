@@ -10,6 +10,7 @@ import { CommissionMathExplainer } from "@/components/dashboard/commission-math-
 import { OrdersTable } from "@/components/dashboard/orders-table";
 import { Button } from "@/components/ui/button";
 import { DashboardData, getDashboardData } from "./actions";
+import { formatCurrency } from "@/lib/utils/format";
 
 interface DashboardClientProps {
     initialData: DashboardData;
@@ -27,6 +28,7 @@ export function DashboardClient({
     const [data, setData] = useState<DashboardData>(initialData);
     const [selectedMonth, setSelectedMonth] = useState<Date>(currentMonth);
     const [isPending, startTransition] = useTransition();
+    const c = data.commission.periodData.currency;
 
     const handleMonthChange = (month: Date) => {
         setSelectedMonth(month);
@@ -89,7 +91,7 @@ export function DashboardClient({
                             </p>
                         </div>
                     </div>
-                    <OrdersTable orders={data.orders} />
+                    <OrdersTable orders={data.orders} currency={data.commission.periodData.currency} />
                 </div>
 
                 {/* How Your Commission is Calculated */}
@@ -109,19 +111,19 @@ export function DashboardClient({
                             <div className="p-3 rounded-md bg-background border">
                                 <p className="text-muted-foreground text-xs">Total Approved Revenue</p>
                                 <p className="font-mono font-medium text-lg">
-                                    ${data.commission.totalRevenue.toLocaleString()}
+                                    {formatCurrency(data.commission.totalRevenue, data.commission.periodData.currency)}
                                 </p>
                             </div>
                             <div className="p-3 rounded-md bg-background border">
                                 <p className="text-muted-foreground text-xs">Base Revenue (up to quota)</p>
                                 <p className="font-mono font-medium text-lg">
-                                    ${data.commission.breakdown.baseRevenue.toLocaleString()}
+                                    {formatCurrency(data.commission.breakdown.baseRevenue, data.commission.periodData.currency)}
                                 </p>
                             </div>
                             <div className="p-3 rounded-md bg-background border">
                                 <p className="text-muted-foreground text-xs">Overage Revenue (above quota)</p>
                                 <p className="font-mono font-medium text-lg">
-                                    ${data.commission.breakdown.overageRevenue.toLocaleString()}
+                                    {formatCurrency(data.commission.breakdown.overageRevenue, data.commission.periodData.currency)}
                                 </p>
                             </div>
                         </div>
@@ -134,24 +136,24 @@ export function DashboardClient({
                             {/* Base Commission */}
                             <div className="flex flex-wrap items-center gap-2">
                                 <span className="text-muted-foreground">Base Commission:</span>
-                                <span>${data.commission.breakdown.baseRevenue.toLocaleString()}</span>
+                                <span>{formatCurrency(data.commission.breakdown.baseRevenue, data.commission.periodData.currency)}</span>
                                 <span className="text-muted-foreground">×</span>
                                 <span>{(data.commission.periodData.effectiveRate * 100).toFixed(2)}%</span>
                                 <span className="text-muted-foreground">=</span>
-                                <span className="font-semibold">${data.commission.breakdown.baseCommission.toLocaleString()}</span>
+                                <span className="font-semibold">{formatCurrency(data.commission.breakdown.baseCommission, data.commission.periodData.currency)}</span>
                             </div>
 
                             {/* Overage Commission (if applicable) */}
                             {data.commission.breakdown.overageRevenue > 0 && (
                                 <div className="flex flex-wrap items-center gap-2">
                                     <span className="text-muted-foreground">Overage Commission:</span>
-                                    <span>${data.commission.breakdown.overageRevenue.toLocaleString()}</span>
+                                    <span>{formatCurrency(data.commission.breakdown.overageRevenue, data.commission.periodData.currency)}</span>
                                     <span className="text-muted-foreground">×</span>
                                     <span>{(data.commission.periodData.effectiveRate * 100).toFixed(2)}%</span>
                                     <span className="text-muted-foreground">×</span>
                                     <span>{data.commission.breakdown.acceleratorMultiplier}x</span>
                                     <span className="text-muted-foreground">=</span>
-                                    <span className="font-semibold">${data.commission.breakdown.overageCommission.toLocaleString()}</span>
+                                    <span className="font-semibold">{formatCurrency(data.commission.breakdown.overageCommission, data.commission.periodData.currency)}</span>
                                 </div>
                             )}
 
@@ -159,7 +161,7 @@ export function DashboardClient({
                             {data.commission.breakdown.kickerAmount > 0 && (
                                 <div className="flex flex-wrap items-center gap-2">
                                     <span className="text-muted-foreground">Kicker Bonus:</span>
-                                    <span className="font-semibold">${data.commission.breakdown.kickerAmount.toLocaleString()}</span>
+                                    <span className="font-semibold">{formatCurrency(data.commission.breakdown.kickerAmount, data.commission.periodData.currency)}</span>
                                     <span className="text-xs text-muted-foreground">
                                         ({data.commission.breakdown.kickersApplied.join(", ")})
                                     </span>
@@ -172,21 +174,21 @@ export function DashboardClient({
                             {/* Total */}
                             <div className="flex flex-wrap items-center gap-2">
                                 <span className="text-muted-foreground">Total Commission:</span>
-                                <span>${data.commission.breakdown.baseCommission.toLocaleString()}</span>
+                                <span>{formatCurrency(data.commission.breakdown.baseCommission, data.commission.periodData.currency)}</span>
                                 {data.commission.breakdown.overageRevenue > 0 && (
                                     <>
                                         <span className="text-muted-foreground">+</span>
-                                        <span>${data.commission.breakdown.overageCommission.toLocaleString()}</span>
+                                        <span>{formatCurrency(data.commission.breakdown.overageCommission, data.commission.periodData.currency)}</span>
                                     </>
                                 )}
                                 {data.commission.breakdown.kickerAmount > 0 && (
                                     <>
                                         <span className="text-muted-foreground">+</span>
-                                        <span>${data.commission.breakdown.kickerAmount.toLocaleString()}</span>
+                                        <span>{formatCurrency(data.commission.breakdown.kickerAmount, data.commission.periodData.currency)}</span>
                                     </>
                                 )}
                                 <span className="text-muted-foreground">=</span>
-                                <span className="font-bold text-lg">${data.commission.commissionEarned.toLocaleString()}</span>
+                                <span className="font-bold text-lg">{formatCurrency(data.commission.commissionEarned, data.commission.periodData.currency)}</span>
                             </div>
                         </div>
                     </div>
@@ -210,7 +212,7 @@ export function DashboardClient({
                         <div className="mt-4">
                             <h4 className="text-sm font-medium text-muted-foreground mb-3">Kicker Bonuses Earned</h4>
                             <div className="p-3 rounded-md bg-background border text-sm">
-                                <p className="font-medium">${data.commission.breakdown.kickerAmount.toLocaleString()} bonus</p>
+                                <p className="font-medium">{formatCurrency(data.commission.breakdown.kickerAmount, data.commission.periodData.currency)} bonus</p>
                                 <p className="text-muted-foreground text-xs mt-1">
                                     Kickers applied: {data.commission.breakdown.kickersApplied.join(", ")}
                                 </p>
