@@ -151,7 +151,7 @@ function LoginForm() {
                 {/* Demo credentials hint */}
                 <div className="text-center text-xs text-muted-foreground">
                     <p>Demo: admin@company.com / admin123 (Admin)</p>
-                    <p>Demo: jane.smith@company.com / admin123 (Rep)</p>
+                    <p>Demo: jane.smith@company.com / rep123 (Rep)</p>
                 </div>
             </CardContent>
         </Card>
