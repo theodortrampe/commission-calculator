@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import "@testing-library/jest-dom";
 import { render, screen } from "@testing-library/react";
 import { AuditLogSheet } from "../audit-log-sheet";
@@ -25,7 +26,7 @@ jest.mock("lucide-react", () => ({
     ArrowRight: () => <span />,
 }));
 jest.mock("date-fns", () => ({
-    format: (date: Date, fmt: string) => "Jan 2026",
+    format: () => "Jan 2026",
 }));
 
 const mockUser = {
@@ -63,6 +64,7 @@ function makeCommission(overrides: Partial<CommissionResult> = {}): CommissionRe
             planName: "Standard Plan",
             ote: 160000,
             baseSalary: 80000,
+            currency: "USD",
         },
         ...overrides,
     };
@@ -128,6 +130,7 @@ describe("AuditLogSheet", () => {
                     planName: "Standard Plan",
                     ote: 160000,
                     baseSalary: 80000,
+                    currency: "USD",
                 },
             }),
         });

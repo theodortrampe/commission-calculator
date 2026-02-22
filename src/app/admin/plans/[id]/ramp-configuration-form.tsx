@@ -49,7 +49,7 @@ interface RampStep {
     id: string;
     monthIndex: number;
     quotaPercentage: number;
-    guaranteedDrawPercent: any; // Float from Prisma
+    guaranteedDrawPercent: number | null; // Float from Prisma
     drawType: "NON_RECOVERABLE" | "RECOVERABLE";
     disableAccelerators: boolean;
     disableKickers: boolean;

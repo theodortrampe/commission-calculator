@@ -22,8 +22,9 @@
 ## Priority 2: User Management 👥
 **Goal**: Allow admins to manage users directly in the app.
 - [ ] **User Directory**: List all users, edit roles, assign managers.
-- [ ] **Invite System**: Send email invites to new reps.
-- [ ] **Deactivation**: Handle rep departures (offboarding).
+- [ ] **Invite System (V1)**: Admins create users manually and share a generated temporary password.
+- [ ] **Robust Invite System (V2)**: Integrate an email provider (e.g., Resend) for automated magic-link/password invites.
+- [ ] **Deactivation**: Handle rep departures (offboarding) while preserving historical data.
 
 ## Priority 3: Audit & Compliance 🛡️
 **Goal**: Ensure data integrity and accountability.

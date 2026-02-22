@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from "react";
 import { format } from "date-fns";
-import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, Plus, Check, Send, DollarSign } from "lucide-react";
 import Link from "next/link";
 
@@ -52,7 +51,6 @@ const statusColors: Record<PayoutStatus, string> = {
 };
 
 export function PayoutDetailClient({ initialData }: PayoutDetailClientProps) {
-    const router = useRouter();
     const [payout, setPayout] = useState<PayoutWithAdjustments>(initialData);
     const [isPending, startTransition] = useTransition();
     const [dialogOpen, setDialogOpen] = useState(false);

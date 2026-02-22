@@ -97,8 +97,16 @@ A Next.js application for managing sales rep commission calculations, payouts, a
    ```
 
 4. **Generate Auth Secret:**
+   Running the following command will prompt you to install an `auth` package (type `y` to proceed). It will then create an `.env.local` file with an `AUTH_SECRET` automatically:
    ```bash
    npx auth secret
+   ```
+
+   **Optional: Google OAuth**
+   By default, you can log in with a pre-created test user (see below). If you wish to use Google login, copy `.env.local.example` to `.env.local` and add your Google credentials:
+   ```env
+   AUTH_GOOGLE_ID=your_client_id
+   AUTH_GOOGLE_SECRET=your_client_secret
    ```
 
 5. **Set up the database:**

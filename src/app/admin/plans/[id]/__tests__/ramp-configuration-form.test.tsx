@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import "@testing-library/jest-dom";
 import { render, screen, fireEvent } from "@testing-library/react";
 import {
@@ -28,13 +30,16 @@ jest.mock("@/components/ui/button", () => ({
         </button>
     ),
 }));
+// Polyfill ResizeObserver which is needed by Radix UI Select
+global.ResizeObserver = require("resize-observer-polyfill");
+
 jest.mock("@/components/ui/input", () => {
     const React = require("react");
-    return {
-        Input: React.forwardRef(({ ...props }: any, ref: any) => (
-            <input ref={ref} {...props} />
-        )),
-    };
+    const Input = React.forwardRef(({ ...props }: any, ref: any) => (
+        <input ref={ref} {...props} />
+    ));
+    Input.displayName = "Input";
+    return { Input };
 });
 jest.mock("@/components/ui/label", () => ({
     Label: ({ children, ...props }: any) => <label {...props}>{children}</label>,
@@ -64,7 +69,7 @@ jest.mock("@/components/ui/slider", () => ({
     ),
 }));
 jest.mock("@/components/ui/select", () => ({
-    Select: ({ children, value, onValueChange }: any) => (
+    Select: ({ children }: any) => (
         <div data-testid="select">{children}</div>
     ),
     SelectContent: ({ children }: any) => <div>{children}</div>,

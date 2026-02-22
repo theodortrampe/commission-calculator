@@ -55,6 +55,9 @@ model User {
   // Compensation currency (EUR or USD)
   currency      String    @default("USD")
   
+  // Status (for offboarding without hard-deleting)
+  isActive      Boolean   @default(true)
+  
   // Multi-tenancy
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])

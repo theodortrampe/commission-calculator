@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import "@testing-library/jest-dom";
 import { render, screen } from "@testing-library/react";
 import { CommissionMathExplainer } from "../commission-math-explainer";
@@ -52,6 +53,7 @@ function makeCommission(overrides: Partial<CommissionResult> = {}): CommissionRe
             planName: "Standard Plan",
             ote: 160000,
             baseSalary: 80000,
+            currency: "USD",
         },
         ...overrides,
     };
@@ -85,6 +87,7 @@ describe("CommissionMathExplainer", () => {
                 planName: "Standard Plan",
                 ote: 160000,
                 baseSalary: 80000,
+                currency: "USD",
             },
         });
 
@@ -107,6 +110,7 @@ describe("CommissionMathExplainer", () => {
                 planName: "Standard Plan",
                 ote: 160000,
                 baseSalary: 80000,
+                currency: "USD",
             },
         });
 
@@ -139,6 +143,7 @@ describe("CommissionMathExplainer", () => {
                 planName: "Standard Plan",
                 ote: 160000,
                 baseSalary: 80000,
+                currency: "USD",
             },
         });
 

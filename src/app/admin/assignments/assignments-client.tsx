@@ -3,7 +3,7 @@
 
 import { useTransition } from "react";
 import { format } from "date-fns";
-import { Users, User, Trash2, Calendar, Shield, Lock, CalendarOff, AlertTriangle } from "lucide-react";
+import { User, Trash2, Calendar, Shield, Lock, CalendarOff, AlertTriangle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {

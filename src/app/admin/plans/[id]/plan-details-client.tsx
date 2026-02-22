@@ -29,15 +29,17 @@ interface PlanDetailsClientProps {
 }
 
 // Parse accelerator tiers from JSON
-function getAcceleratorTiers(accelerators: any): { minAttainment: number; maxAttainment: number | null; multiplier: number }[] {
-    if (!accelerators?.tiers || !Array.isArray(accelerators.tiers)) return [];
-    return accelerators.tiers;
+function getAcceleratorTiers(accelerators: unknown): { minAttainment: number; maxAttainment: number | null; multiplier: number }[] {
+    const accels = accelerators as Record<string, unknown>;
+    if (!accels?.tiers || !Array.isArray(accels.tiers)) return [];
+    return accels.tiers as { minAttainment: number; maxAttainment: number | null; multiplier: number }[];
 }
 
 // Parse kicker bonuses from JSON
-function getKickerBonuses(kickers: any): { attainmentThreshold: number; bonusPercent: number }[] {
-    if (!kickers?.bonuses || !Array.isArray(kickers.bonuses)) return [];
-    return kickers.bonuses;
+function getKickerBonuses(kickers: unknown): { attainmentThreshold: number; bonusPercent: number }[] {
+    const kicks = kickers as Record<string, unknown>;
+    if (!kicks?.bonuses || !Array.isArray(kicks.bonuses)) return [];
+    return kicks.bonuses as { attainmentThreshold: number; bonusPercent: number }[];
 }
 
 export function PlanDetailsClient({ plan }: PlanDetailsClientProps) {

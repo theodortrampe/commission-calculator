@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useForm, useFieldArray, useWatch } from "react-hook-form";
+import { useForm, useFieldArray, useWatch, Control } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, Save, Plus, Trash2, Settings2, Zap, TrendingUp, Infinity } from "lucide-react";
+import { Loader2, Plus, Trash2, Settings2, Zap, TrendingUp } from "lucide-react";
 import { CompPlan, RampStep, PayoutFreq } from "@prisma/client";
 
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,6 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
 import {
     Select,
     SelectContent,
@@ -30,7 +29,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 
-import { updateCompPlan, saveRampSteps } from "../actions";
+import { updateCompPlan } from "../actions";
 import { RampConfigurationFormInline } from "./ramp-configuration-form";
 
 // ── Accelerator tier schema ──
@@ -63,26 +62,34 @@ interface PlanConfigDialogProps {
 }
 
 // Parse existing accelerators JSON into tier rows
-function parseAcceleratorTiers(accelerators: any): FormValues["acceleratorTiers"] {
-    if (!accelerators || !accelerators.tiers || !Array.isArray(accelerators.tiers)) {
+function parseAcceleratorTiers(accelerators: unknown): FormValues["acceleratorTiers"] {
+    const accels = accelerators as Record<string, unknown>;
+    if (!accels || !accels.tiers || !Array.isArray(accels.tiers)) {
         return [{ minAttainment: 0, maxAttainment: 100, multiplier: 1.0 }];
     }
-    return accelerators.tiers.map((t: any) => ({
-        minAttainment: t.minAttainment ?? 0,
-        maxAttainment: t.maxAttainment ?? null,
-        multiplier: t.multiplier ?? 1.0,
-    }));
+    return accels.tiers.map((t: unknown) => {
+        const tier = t as Record<string, unknown>;
+        return {
+            minAttainment: (tier.minAttainment as number) ?? 0,
+            maxAttainment: (tier.maxAttainment as number | null) ?? null,
+            multiplier: (tier.multiplier as number) ?? 1.0,
+        };
+    });
 }
 
 // Parse existing kickers JSON into bonus rows
-function parseKickerBonuses(kickers: any): FormValues["kickerBonuses"] {
-    if (!kickers || !kickers.bonuses || !Array.isArray(kickers.bonuses)) {
+function parseKickerBonuses(kickers: unknown): FormValues["kickerBonuses"] {
+    const kicks = kickers as Record<string, unknown>;
+    if (!kicks || !kicks.bonuses || !Array.isArray(kicks.bonuses)) {
         return [];
     }
-    return kickers.bonuses.map((k: any) => ({
-        attainmentThreshold: k.attainmentThreshold ?? 0,
-        bonusPercent: k.bonusPercent ?? 0,
-    }));
+    return kicks.bonuses.map((k: unknown) => {
+        const bonus = k as Record<string, unknown>;
+        return {
+            attainmentThreshold: (bonus.attainmentThreshold as number) ?? 0,
+            bonusPercent: (bonus.bonusPercent as number) ?? 0,
+        };
+    });
 }
 
 type TabId = "general" | "accelerators" | "ramp";
@@ -91,7 +98,6 @@ export function VersionEditor({ plan, initialSteps }: PlanConfigDialogProps) {
     const [open, setOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<TabId>("general");
     const [isPending, startTransition] = useTransition();
-    const [rampSaveSuccess, setRampSaveSuccess] = useState(false);
 
     const form = useForm<FormValues>({
         resolver: zodResolver(formSchema),
@@ -458,18 +464,20 @@ export function VersionEditor({ plan, initialSteps }: PlanConfigDialogProps) {
     );
 }
 
-function TiedMaxAttainmentDisplay({ control, index }: { control: any; index: number }) {
+function TiedMaxAttainmentDisplay({ control, index }: { control: Control<FormValues>; index: number }) {
     // We need to watch the NEXT tier's minAttainment
-    const nextTierMin = useWaitAndWatch(control, `acceleratorTiers.${index + 1}.minAttainment`);
-    const displayValue = (nextTierMin !== null && nextTierMin !== undefined && !isNaN(nextTierMin)) ? nextTierMin : '...';
-    return <span>{displayValue}</span>;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const nextTierMin = useWaitAndWatch(control, `acceleratorTiers.${index + 1}.minAttainment` as any);
+    const displayValue = (nextTierMin !== null && nextTierMin !== undefined && !isNaN(nextTierMin as number)) ? nextTierMin : '...';
+    return <span>{displayValue as React.ReactNode}</span>;
 }
 
 // New helper hook to wrap useWatch
-function useWaitAndWatch(control: any, name: string) {
+function useWaitAndWatch(control: Control<FormValues>, name: string) {
     const value = useWatch({
         control,
-        name,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        name: name as any,
     });
     return value;
 }

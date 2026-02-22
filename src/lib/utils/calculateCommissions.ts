@@ -147,7 +147,7 @@ export async function calculateCommissions(
     let effectiveQuota = periodData.quota;
     let effectiveOTE = periodData.ote;
     let rampOverride: RampOverrideResult | null = null;
-    let baseRateMultiplierOverride = plan?.baseRateMultiplier ?? 1.0;
+    const baseRateMultiplierOverride = plan?.baseRateMultiplier ?? 1.0;
     let acceleratorsEnabledOverride = plan?.acceleratorsEnabled ?? true;
     let kickersEnabledOverride = plan?.kickersEnabled ?? false;
     let guaranteedDrawPercent = 0;

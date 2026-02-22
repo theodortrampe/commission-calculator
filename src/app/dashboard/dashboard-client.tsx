@@ -28,7 +28,6 @@ export function DashboardClient({
     const [data, setData] = useState<DashboardData>(initialData);
     const [selectedMonth, setSelectedMonth] = useState<Date>(currentMonth);
     const [isPending, startTransition] = useTransition();
-    const c = data.commission.periodData.currency;
 
     const handleMonthChange = (month: Date) => {
         setSelectedMonth(month);

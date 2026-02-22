@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 // Mock Prisma before importing the module under test
 const mockDeleteMany = jest.fn();
 const mockCreate = jest.fn();

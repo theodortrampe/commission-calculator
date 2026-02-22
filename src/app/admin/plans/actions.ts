@@ -97,7 +97,9 @@ export async function updateCompPlan(planId: string, data: {
     frequency: PayoutFreq;
     acceleratorsEnabled: boolean;
     kickersEnabled: boolean;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     accelerators: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     kickers: any;
 }) {
     await prisma.compPlan.update({

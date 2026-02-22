@@ -74,7 +74,7 @@ export async function createAdjustment(
         revalidatePath(`/admin/payouts/${payoutId}`);
 
         return { success: true };
-    } catch (_e) {
+    } catch {
         return { success: false, error: "Failed to create adjustment" };
     }
 }
@@ -111,7 +111,7 @@ export async function updatePayoutStatus(
         revalidatePath(`/admin/payouts/${payoutId}`);
 
         return { success: true };
-    } catch (_e) {
+    } catch {
         return { success: false, error: "Failed to update payout status" };
     }
 }

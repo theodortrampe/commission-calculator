@@ -11,25 +11,8 @@ interface ImportRow {
     [key: string]: unknown;
 }
 
-interface CompensationData {
-    email: string;
-    name?: string;
-    title?: string;
-    month: string;
-    quota: number;
-    baseSalary: number;
-    ote: number;
-    role?: string;
-    planId?: string;
-}
+// Interfaces CompensationData and OrderData removed due to being unused
 
-interface OrderData {
-    orderNumber: string;
-    userEmail: string;
-    convertedUsd: number;
-    convertedEur?: number;
-    bookingDate: string;
-}
 
 /**
  * POST /api/import/execute

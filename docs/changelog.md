@@ -5,6 +5,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.2.1] — 2026-02-22
+
+### Modified
+- **Codebase Type Refinement** — Replaced broad `any` types with more specific type assertions (`unknown`, `never`, etc.) across admin plan forms, action payloads, and test files to improve type safety.
+- **Error Handling Improvements** — Standardized error handling in `catch` blocks (e.g. `actions.ts`, `user-form-dialog.tsx`, `user-table.tsx`) to properly check `e instanceof Error` instead of using typed `any` catch variables.
+- **Linting & Code Cleanup** — Resolved all remaining ESLint and TypeScript compilation warnings across the project. Removed unused imports and variables in UI components and test mocks (e.g., `ResizeObserver` polyfill warning).
+
+---
+
 ## [1.2.0] — 2026-02-18
 
 ### Added

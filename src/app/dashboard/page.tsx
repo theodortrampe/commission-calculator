@@ -41,7 +41,7 @@ export default async function DashboardPage() {
             userId: user.id,
             month: currentMonth,
         });
-    } catch (_error) {
+    } catch {
         // Handle case where no period data exists
         return (
             <div className="container mx-auto py-10 px-4">
